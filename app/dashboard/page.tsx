@@ -25,10 +25,8 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-// Real-time Firebase data
-const { dashboardData, loading: dashboardLoading, error: dashboardError } = useDashboard();
-const { realtimeData, loading: realtimeLoading } = useRealtimeDashboard();
-const { alerts, totalAlerts } = useDashboardAlerts();
+// Real-time Firebase data from your database
+const { dashboardData, recentActivity, loading: dashboardLoading, error: dashboardError } = useRealDashboard();
 
 // Dynamic stats from Firebase
 const stats = dashboardData ? [
@@ -66,20 +64,19 @@ const stats = dashboardData ? [
   },
 ] : [];
 
-// Real-time activity from Firebase
-const recentActivity = realtimeData?.recentActivity.map(log => ({
-  id: log.id,
-  action: log.action,
-  user: log.userEmail,
-  time: new Date(log.createdAt).toLocaleString(),
-  type: log.category === 'verification' ? 'success' : 
-        log.category === 'feedback' ? 'info' : 
-        log.category === 'system' ? 'warning' : 'info',
-  icon: log.category === 'verification' ? CheckCircle :
-        log.category === 'feedback' ? MessageSquare :
-        log.category === 'schedule' ? Calendar :
-        log.category === 'profile' ? Users : Activity,
-})) || [];
+// Real-time activity from your Firebase database
+const activityList = recentActivity.map(activity => ({
+  id: activity.id,
+  action: activity.action,
+  user: activity.user,
+  time: new Date(activity.timestamp).toLocaleString(),
+  type: activity.type === 'feedback' ? 'success' : 
+        activity.type === 'appointment' ? 'info' : 
+        activity.type === 'referral' ? 'warning' : 'info',
+  icon: activity.type === 'feedback' ? MessageSquare :
+        activity.type === 'appointment' ? Calendar :
+        activity.type === 'referral' ? Users : Activity,
+}));
 
 const pendingTasks = [
   {
@@ -100,7 +97,7 @@ const pendingTasks = [
 
 export default function DashboardPage() {
   // Show loading state
-  if (dashboardLoading || realtimeLoading) {
+  if (dashboardLoading) {
     return (
       <DashboardLayout title="Dashboard">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -222,7 +219,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentActivity.map((activity) => (
+                {activityList.map((activity) => (
                   <div key={activity.id} className="flex items-start space-x-3">
                     <div
                       className={`rounded-full p-1 ${
