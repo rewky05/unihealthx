@@ -66,9 +66,9 @@ export function ClinicCard({
                 <Building className="h-5 w-5 mr-2" />
                 Clinic Affiliations
               </CardTitle>
-              <CardDescription>
+              {/* <CardDescription>
                 Manage clinic partnerships and roles
-              </CardDescription>
+              </CardDescription> */}
             </div>
             <Button onClick={handleAdd} size="sm" variant="outline">
               <Plus className="h-4 w-4 mr-2" />

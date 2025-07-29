@@ -14,6 +14,7 @@ import {
   Heart,
   Menu,
   X,
+  ChevronLeft,
   Shield,
   FileText,
   Activity,
@@ -32,20 +33,15 @@ const navigationItems = [
     icon: Users,
   },
   {
-    title: "Schedule Management",
-    href: "/schedules",
-    icon: Calendar,
-  },
-  {
     title: "Patient Feedback",
     href: "/feedback",
     icon: MessageSquare,
   },
-  {
-    title: "Activity Logs",
-    href: "/activity-logs",
-    icon: Activity,
-  },
+  // {
+  //   title: "Activity Logs",
+  //   href: "/activity-logs",
+  //   icon: Activity,
+  // },
   {
     title: "Settings",
     href: "/settings",
@@ -85,7 +81,7 @@ export function Sidebar() {
         )}
       >
         {/* Header */}
-        <div className="flex h-16 items-center justify-between px-4 border-b border-border/20">
+        <div className={`flex h-16 items-center justify-between ${isCollapsed ? "px-4" : "px-4 pr-2"} border-b border-border/20`}>
           {!isCollapsed && (
             <div className="flex items-center space-x-2">
               <div className="bg-primary rounded-lg p-2">

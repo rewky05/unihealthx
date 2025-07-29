@@ -247,7 +247,7 @@ export default function FeedbackPage() {
         </div>
 
         {/* Filters */}
-        <Card className="card-shadow">
+        <Card id="review-feedback" className="card-shadow">
           <CardContent className="pt-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center">
               <div className="flex-1">

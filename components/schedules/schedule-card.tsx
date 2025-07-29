@@ -65,9 +65,9 @@ export function ScheduleCard({
                 <Calendar className="h-5 w-5 mr-2" />
                 Weekly Schedule
               </CardTitle>
-              <CardDescription>
+              {/* <CardDescription>
                 Manage weekly availability and time slots
-              </CardDescription>
+              </CardDescription> */}
             </div>
             <Button onClick={handleAdd} size="sm">
               <Plus className="h-4 w-4 mr-2" />

@@ -42,14 +42,17 @@ const defaultClinics: Clinic[] = [
   },
 ];
 
-export function useScheduleData() {
-  const [selectedDoctor, setSelectedDoctor] = useState('');
+export function useScheduleData(initialDoctorId?: string) {
+  const [selectedDoctor, setSelectedDoctor] = useState(initialDoctorId || '');
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [clinics, setClinics] = useState<Clinic[]>([]);
 
   const handleDoctorSelect = (doctorId: string) => {
     setSelectedDoctor(doctorId);
-    // Simulate loading doctor's data
+    loadMockData(doctorId);
+  };
+
+  const loadMockData = (doctorId: string) => {
     if (doctorId) {
       setSchedules(defaultSchedules);
       setClinics(defaultClinics);
@@ -58,6 +61,13 @@ export function useScheduleData() {
       setClinics([]);
     }
   };
+
+  // Load data on init if initial doctor is passed
+  useState(() => {
+    if (initialDoctorId) {
+      loadMockData(initialDoctorId);
+    }
+  });
 
   const handleScheduleAdd = (scheduleData: Omit<Schedule, 'id'>) => {
     const newSchedule: Schedule = {

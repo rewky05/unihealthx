@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import {
   Card,
@@ -161,21 +162,37 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {/* <Button className="h-20 flex-col space-y-2"> */}
               <Button className="h-20 flex-col space-y-2">
-                <UserCheck className="h-6 w-6" />
-                <span>Verify Doctor</span>
+                <Link
+                  href="/doctors?status=pending"
+                  className="flex flex-col items-center space-y-2"
+                >
+                  <UserCheck className="h-6 w-6" />
+                  <span>Verify Doctor</span>
+                </Link>
               </Button>
-              <Button variant="outline" className="h-20 flex-col space-y-2">
-                <Users className="h-6 w-6" />
-                <span>Add Doctor</span>
+              <Button variant="outline" className="h-20">
+                <Link
+                  href="/doctors/add"
+                  className="flex flex-col items-center space-y-2"
+                >
+                  <Users className="h-6 w-6" />
+                  <span>Add Doctor</span>
+                </Link>
               </Button>
               <Button variant="outline" className="h-20 flex-col space-y-2">
                 <Calendar className="h-6 w-6" />
                 <span>Manage Schedules</span>
               </Button>
-              <Button variant="outline" className="h-20 flex-col space-y-2">
-                <MessageSquare className="h-6 w-6" />
-                <span>Review Feedback</span>
+              <Button variant="outline" className="h-20">
+                <Link
+                  href="/feedback#review-feedback"
+                  className="flex flex-col items-center space-y-2"
+                >
+                  <MessageSquare className="h-6 w-6" />
+                  <span>Review Feedback</span>
+                </Link>
               </Button>
             </div>
           </CardContent>

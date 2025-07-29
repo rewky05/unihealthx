@@ -29,14 +29,14 @@ export function Header({ title, onMenuClick }: HeaderProps) {
 
       <div className="flex items-center gap-2">
         {/* Search - Hidden on mobile */}
-        <div className="hidden md:flex relative w-64">
+        {/* <div className="hidden md:flex relative w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
             placeholder="Search doctors, clinics..."
             className="pl-8"
           />
-        </div>
+        </div> */}
 
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
