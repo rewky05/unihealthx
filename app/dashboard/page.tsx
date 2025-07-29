@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRealDashboard } from "@/hooks/useRealData";
+import { useDashboardData, useSpecialists, useActivityLogs } from "@/hooks/useOptimizedData";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { LoadingSpinner, ErrorState } from "@/components/ui/loading-states";
 import {
   Card,
   CardContent,
@@ -25,59 +26,6 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-// Real-time Firebase data from your database
-const { dashboardData, recentActivity, loading: dashboardLoading, error: dashboardError } = useRealDashboard();
-
-// Dynamic stats from Firebase
-const stats = dashboardData ? [
-  {
-    title: "Total Doctors",
-    value: dashboardData.totalDoctors.toString(),
-    change: "+12%", // TODO: Calculate from historical data
-    trend: "up" as const,
-    icon: Users,
-    color: "text-blue-600",
-  },
-  {
-    title: "Verified Doctors", 
-    value: dashboardData.verifiedDoctors.toString(),
-    change: "+5%",
-    trend: "up" as const,
-    icon: UserCheck,
-    color: "text-green-600",
-  },
-  {
-    title: "Pending Verification",
-    value: dashboardData.pendingVerification.toString(),
-    change: "-3%",
-    trend: "down" as const,
-    icon: Clock,
-    color: "text-orange-600",
-  },
-  {
-    title: "Avg Rating",
-    value: dashboardData.averageRating.toFixed(1),
-    change: "+0.2",
-    trend: "up" as const,
-    icon: TrendingUp,
-    color: "text-indigo-600",
-  },
-] : [];
-
-// Real-time activity from your Firebase database
-const activityList = recentActivity.map(activity => ({
-  id: activity.id,
-  action: activity.action,
-  user: activity.user,
-  time: new Date(activity.timestamp).toLocaleString(),
-  type: activity.type === 'feedback' ? 'success' : 
-        activity.type === 'appointment' ? 'info' : 
-        activity.type === 'referral' ? 'warning' : 'info',
-  icon: activity.type === 'feedback' ? MessageSquare :
-        activity.type === 'appointment' ? Calendar :
-        activity.type === 'referral' ? Users : Activity,
-}));
-
 const pendingTasks = [
   {
     id: 1,
@@ -95,68 +43,105 @@ const pendingTasks = [
   },
 ];
 
+
+
 export default function DashboardPage() {
+  // ✅ OPTIMIZED - Using React Query hooks with caching
+  const { 
+    data: dashboardData, 
+    isLoading: dashboardLoading, 
+    error: dashboardError,
+    refetch: refetchDashboard 
+  } = useDashboardData();
+
+  const { 
+    data: specialists = [], 
+    isLoading: specialistsLoading,
+    error: specialistsError 
+  } = useSpecialists();
+
+  const { 
+    data: activityLogs = [], 
+    isLoading: activityLoading,
+    error: activityError 
+  } = useActivityLogs();
+
   // Show loading state
-  if (dashboardLoading) {
+  if (dashboardLoading || specialistsLoading) {
     return (
-      <DashboardLayout title="Dashboard">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading dashboard...</p>
-          </div>
-        </div>
+      <DashboardLayout title="">
+        <LoadingSpinner size="lg" text="Loading dashboard data..." />
       </DashboardLayout>
     );
   }
 
   // Show error state
-  if (dashboardError) {
+  if (dashboardError || specialistsError) {
     return (
-      <DashboardLayout title="Dashboard">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="text-red-500 mb-4">
-              <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
-              <p>Error loading dashboard</p>
-            </div>
-            <p className="text-sm text-muted-foreground">{dashboardError}</p>
-          </div>
-        </div>
+      <DashboardLayout title="">
+        <ErrorState 
+          error={dashboardError?.message || specialistsError?.message || 'Failed to load dashboard data'}
+          onRetry={refetchDashboard}
+        />
       </DashboardLayout>
     );
   }
 
+  // Calculate stats from cached data
+  const stats = dashboardData ? [
+    {
+      title: "Total Specialists",
+      value: specialists.length,
+      change: "+12%",
+      changeType: "positive" as const,
+      icon: Users,
+    },
+    {
+      title: "Verified Specialists",
+      value: specialists.filter(d => d.status === 'verified').length,
+      change: "+8%",
+      changeType: "positive" as const,
+      icon: UserCheck,
+    },
+    {
+      title: "Pending Reviews",
+      value: specialists.filter(d => d.status === 'pending').length,
+      change: "-5%",
+      changeType: "negative" as const,
+      icon: UserX,
+    },
+    {
+      title: "Active Clinics",
+      value: dashboardData?.totalClinics || 0,
+      change: "+3%",
+      changeType: "positive" as const,
+      icon: Calendar,
+    },
+  ] : [];
+
+  // Recent activity from cached data
+  const activityList = activityLogs.slice(0, 5).map((activity: any) => ({
+    id: activity.id,
+    title: activity.action,
+    description: activity.description,
+    timestamp: activity.timestamp,
+    type: activity.type,
+  }));
+
   return (
-    <DashboardLayout title="Dashboard">
-      <div className="space-y-8">
-        {/* Stats Grid */}
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4">
-          {stats.map((stat) => (
-            <Card key={stat.title} className="stat-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <div
-                  className={`text-xs flex items-center mt-1 ${
-                    stat.trend === "up" ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  <TrendingUp
-                    className={`h-3 w-3 mr-1 ${
-                      stat.trend === "down" ? "rotate-180" : ""
-                    }`}
-                  />
-                  {stat.change} from last month
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+    <DashboardLayout title="">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Welcome back! Here's what's happening with your specialists.
+            </p>
+          </div>
+          {/* <Button asChild>
+            <Link href="/doctors/add">Add Specialist</Link>
+          </Button> */}
         </div>
 
         {/* Quick Actions */}
@@ -168,8 +153,7 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {/* <Button className="h-20 flex-col space-y-2"> */}
+            <div className="grid gap-4 md:grid-cols-3">
               <Button className="h-20 flex-col space-y-2">
                 <Link
                   href="/doctors?status=pending"
@@ -188,10 +172,10 @@ export default function DashboardPage() {
                   <span>Add Doctor</span>
                 </Link>
               </Button>
-              <Button variant="outline" className="h-20 flex-col space-y-2">
+              {/* <Button variant="outline" className="h-20 flex-col space-y-2">
                 <Calendar className="h-6 w-6" />
                 <span>Manage Schedules</span>
-              </Button>
+              </Button> */}
               <Button variant="outline" className="h-20">
                 <Link
                   href="/feedback#review-feedback"
@@ -205,99 +189,92 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-8 lg:grid-cols-2">
+        {/* Stats Grid */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {stats.map((stat) => (
+            <Card key={stat.title}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                <stat.icon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stat.value}</div>
+                <p className={`text-xs ${
+                  stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {stat.change} from last month
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
           {/* Recent Activity */}
-          <Card className="card-shadow">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Activity className="h-5 w-5 mr-2" />
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
                 Recent Activity
               </CardTitle>
               <CardDescription>
-                Latest administrative actions and system updates
+                Latest updates and activities in your system
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {activityList.map((activity) => (
-                  <div key={activity.id} className="flex items-start space-x-3">
-                    <div
-                      className={`rounded-full p-1 ${
-                        activity.type === "success"
-                          ? "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400"
-                          : activity.type === "warning"
-                          ? "bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-400"
-                          : "bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400"
-                      }`}
-                    >
-                      <activity.icon className="h-3 w-3" />
+                {activityList.map((activity: any) => (
+                  <div key={activity.id} className="flex items-center gap-4">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                      <Clock className="h-4 w-4" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{activity.action}</p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {activity.user}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {activity.time}
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium">{activity.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {activity.description}
                       </p>
                     </div>
+                    <Badge variant="secondary" className="text-xs">
+                      {activity.type}
+                    </Badge>
                   </div>
                 ))}
-              </div>
-              <div className="mt-4 pt-4 border-t">
-                <Button variant="outline" className="w-full" size="sm">
-                  View All Activity
-                </Button>
               </div>
             </CardContent>
           </Card>
 
           {/* Pending Tasks */}
-          <Card className="card-shadow">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <AlertTriangle className="h-5 w-5 mr-2" />
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
                 Pending Tasks
               </CardTitle>
               <CardDescription>
-                Items requiring administrative attention
+                Tasks that require your attention
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {pendingTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="border rounded-lg p-3 space-y-2"
-                  >
-                    <div className="flex items-start justify-between">
-                      <h4 className="text-sm font-medium">{task.title}</h4>
-                      <Badge
-                        variant={
-                          task.priority === "high"
-                            ? "destructive"
-                            : task.priority === "medium"
-                            ? "default"
-                            : "secondary"
-                        }
-                        className="text-xs"
+                  <div key={task.id} className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{task.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {task.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant={task.priority === 'high' ? 'destructive' : 'secondary'}
                       >
                         {task.priority}
                       </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        Due: {task.dueDate}
+                      </span>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {task.description}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Due: {task.dueDate}
-                    </p>
                   </div>
                 ))}
-              </div>
-              <div className="mt-4 pt-4 border-t">
-                <Button variant="outline" className="w-full" size="sm">
-                  View All Tasks
-                </Button>
               </div>
             </CardContent>
           </Card>

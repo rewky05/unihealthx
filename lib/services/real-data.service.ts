@@ -13,7 +13,7 @@ import type {
 
 export class RealDataService {
   /**
-   * Get all doctors from your database
+   * Get all specialist doctors from your database
    */
   async getDoctors(): Promise<Doctor[]> {
     try {
@@ -21,10 +21,13 @@ export class RealDataService {
       if (!snapshot.exists()) return [];
       
       const doctors = snapshot.val();
-      return Object.keys(doctors).map(id => ({
+      const allDoctors = Object.keys(doctors).map(id => ({
         id,
         ...doctors[id]
       }));
+      
+      // Filter to show only specialists
+      return allDoctors.filter(doctor => doctor.isSpecialist === true);
     } catch (error) {
       console.error('Error fetching doctors:', error);
       throw error;
@@ -32,7 +35,7 @@ export class RealDataService {
   }
 
   /**
-   * Subscribe to real-time doctors updates
+   * Subscribe to real-time specialist doctors updates
    */
   subscribeToDoctors(callback: (doctors: Doctor[]) => void): () => void {
     const doctorsRef = ref(db, 'doctors');
@@ -42,7 +45,11 @@ export class RealDataService {
       if (snapshot.exists()) {
         const data = snapshot.val();
         Object.keys(data).forEach(id => {
-          doctors.push({ id, ...data[id] });
+          const doctor = { id, ...data[id] };
+          // Only include specialists
+          if (doctor.isSpecialist === true) {
+            doctors.push(doctor);
+          }
         });
       }
       callback(doctors);
@@ -206,12 +213,12 @@ export class RealDataService {
   }
 
   /**
-   * Calculate dashboard statistics from your real data
+   * Calculate dashboard statistics from your real data (specialists only)
    */
   async getDashboardStats(): Promise<DashboardStats> {
     try {
       const [doctors, clinics, feedback, appointments, patients, referrals] = await Promise.all([
-        this.getDoctors(),
+        this.getDoctors(), // This now returns only specialists
         this.getClinics(),
         this.getFeedback(),
         this.getAppointments(),
@@ -219,8 +226,8 @@ export class RealDataService {
         this.getReferrals()
       ]);
 
-      // Calculate stats from your real data
-      const totalDoctors = doctors.length;
+      // Calculate stats from your real data (specialists only)
+      const totalDoctors = doctors.length; // This is now specialists only
       const verifiedDoctors = doctors.filter(d => d.status === 'verified').length;
       const pendingVerification = doctors.filter(d => !d.status || d.status === 'pending').length;
       const suspendedDoctors = doctors.filter(d => d.status === 'suspended').length;
@@ -259,11 +266,11 @@ export class RealDataService {
   }
 
   /**
-   * Get doctors by specialty
+   * Get specialist doctors by specialty
    */
   async getDoctorsBySpecialty(specialty: string): Promise<Doctor[]> {
     try {
-      const doctors = await this.getDoctors();
+      const doctors = await this.getDoctors(); // This now returns only specialists
       return doctors.filter(doctor => 
         doctor.specialty.toLowerCase().includes(specialty.toLowerCase())
       );
@@ -300,11 +307,11 @@ export class RealDataService {
   }
 
   /**
-   * Search doctors by name or specialty
+   * Search specialist doctors by name or specialty
    */
   async searchDoctors(searchTerm: string): Promise<Doctor[]> {
     try {
-      const doctors = await this.getDoctors();
+      const doctors = await this.getDoctors(); // This now returns only specialists
       const term = searchTerm.toLowerCase();
       
       return doctors.filter(doctor => 
@@ -320,10 +327,23 @@ export class RealDataService {
   }
 
   /**
-   * Get recent activity (appointments, referrals, feedback)
+   * Get recent activity from adminActivityLogs (if exists) or fallback to system activities
    */
   async getRecentActivity(limit: number = 10): Promise<any[]> {
     try {
+      // First try to get admin activity logs
+      const snapshot = await get(ref(db, 'adminActivityLogs'));
+      if (snapshot.exists()) {
+        const activities = snapshot.val();
+        const activityList = Object.keys(activities).map(id => ({ id, ...activities[id] }));
+        
+        // Sort by timestamp (newest first) and limit results
+        return activityList
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+          .slice(0, limit);
+      }
+
+      // Fallback to system activities if adminActivityLogs doesn't exist yet
       const [appointments, referrals, feedback] = await Promise.all([
         this.getAppointments(),
         this.getReferrals(),
@@ -364,7 +384,7 @@ export class RealDataService {
         .slice(0, limit);
     } catch (error) {
       console.error('Error fetching recent activity:', error);
-      throw error;
+      return [];
     }
   }
 }

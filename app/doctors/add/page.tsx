@@ -127,8 +127,34 @@ export default function AddDoctorPage() {
     setIsSubmitting(true);
     
     try {
-      // TODO: Implement Firebase integration
-      console.log('Submitting doctor data:', formData);
+      // Create doctor data for Firebase
+      const doctorData = {
+        firstName: formData.firstName,
+        middleName: formData.middleName,
+        lastName: formData.lastName,
+        suffix: formData.suffix,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        civilStatus: formData.civilStatus,
+        specialty: formData.specialty,
+        subSpecialty: formData.subSpecialty,
+        medicalLicense: formData.medicalLicense,
+        prcId: formData.prcId,
+        prcExpiry: formData.prcExpiry,
+        isSpecialist: true, // Always true for this form
+        isGeneralist: false,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        // Add other fields as needed
+      };
+
+      // TODO: Add Firebase service call here
+      // await realDataService.createDoctor(doctorData);
+      console.log('Submitting doctor data to Firebase:', doctorData);
       
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));

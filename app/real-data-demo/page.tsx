@@ -39,24 +39,24 @@ export default function RealDataDemo() {
   }
 
   return (
-    <DashboardLayout title="🎉 Your Real Firebase Data">
+    <DashboardLayout title="🎉 Your Real Firebase Data (Specialists Only)">
       <div className="space-y-6">
         {/* Dashboard Stats */}
         {dashboardData && (
           <Card>
             <CardHeader>
-              <CardTitle>📊 Real-time Dashboard Statistics</CardTitle>
-              <CardDescription>Calculated from your actual Firebase data</CardDescription>
+              <CardTitle>📊 Real-time Dashboard Statistics (Specialists)</CardTitle>
+              <CardDescription>Calculated from your actual Firebase data - specialists only</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">{dashboardData.totalDoctors}</div>
-                  <div className="text-sm text-muted-foreground">Total Doctors</div>
+                  <div className="text-sm text-muted-foreground">Total Specialists</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">{dashboardData.verifiedDoctors}</div>
-                  <div className="text-sm text-muted-foreground">Verified Doctors</div>
+                  <div className="text-sm text-muted-foreground">Verified Specialists</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-purple-600">{dashboardData.totalClinics}</div>
@@ -75,7 +75,7 @@ export default function RealDataDemo() {
           {/* Doctors */}
           <Card>
             <CardHeader>
-              <CardTitle>👨‍⚕️ Your Doctors ({doctors.length})</CardTitle>
+              <CardTitle>��‍⚕️ Your Specialist Doctors ({doctors.length})</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -93,7 +93,7 @@ export default function RealDataDemo() {
                         {doctor.status || 'Active'}
                       </Badge>
                       <div className="text-xs text-muted-foreground mt-1">
-                        {doctor.isSpecialist ? 'Specialist' : 'Generalist'}
+                        Specialist
                       </div>
                     </div>
                   </div>

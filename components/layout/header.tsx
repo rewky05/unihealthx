@@ -1,17 +1,45 @@
-'use client';
+"use client";
 
-import { Bell, Search, Menu } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { Badge } from '@/components/ui/badge';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { Bell, Settings, LogOut, User, Shield, Menu } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface HeaderProps {
-  title: string;
+  title?: string;
   onMenuClick?: () => void;
 }
 
 export function Header({ title, onMenuClick }: HeaderProps) {
+  const { user, signOut, isSuperadmin } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  if (!user) {
+    return null;
+  }
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 lg:px-6">
       <Button
@@ -23,30 +51,65 @@ export function Header({ title, onMenuClick }: HeaderProps) {
         <Menu className="h-5 w-5" />
       </Button>
 
-      <div className="flex-1">
-        <h1 className="text-xl font-semibold">{title}</h1>
+      <div className="flex-1 flex items-center gap-4">
+        <h1 className="text-xl font-semibold">UniHealth Admin</h1>
+        {isSuperadmin() && (
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+            <Shield className="h-3 w-3 mr-1" />
+            Superadmin
+          </Badge>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Search - Hidden on mobile */}
-        {/* <div className="hidden md:flex relative w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search doctors, clinics..."
-            className="pl-8"
-          />
-        </div> */}
-
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full justify-center p-0 text-xs bg-destructive">
-            <h1>3</h1>
+            3
           </Badge>
         </Button>
 
+        {/* Theme Toggle */}
         <ThemeToggle />
+
+        {/* User Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src="" alt={user.email} />
+                <AvatarFallback>
+                  {user.email.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user.email}</p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user.role === 'superadmin' ? 'Super Administrator' : 'Administrator'}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <User className="mr-2 h-4 w-4" />
+              <span>Profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>{isLoggingOut ? 'Signing out...' : 'Sign out'}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

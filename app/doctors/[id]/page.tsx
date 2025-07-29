@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { DoctorSelector } from "@/components/schedules/doctor-selector";
 import { EmptyState } from "@/components/schedules/empty-state";
 import { DoctorInfoBanner } from "@/components/schedules/doctor-info-banner";
 import { ScheduleCard } from "@/components/schedules/schedule-card";
 import { ClinicCard } from "@/components/schedules/clinic-card";
+import { useRealDoctors } from "@/hooks/useRealData";
 import { useScheduleData } from "@/hooks/use-schedule-data";
 import {
   Card,
@@ -58,136 +60,81 @@ import {
   Activity,
 } from "lucide-react";
 
-const mockDoctor = {
-  id: 1,
-  name: "Dr. Maria Santos",
-  email: "maria.santos@email.com",
-  phone: "+63 917 123 4567",
-  specialty: "Cardiology",
-  subSpecialty: "Interventional Cardiology",
-  clinics: [
-    {
-      name: "Cebu Heart Center",
-      role: "Senior Consultant",
-      since: "2020-01-15",
-    },
-    {
-      name: "Metro Manila Hospital",
-      role: "Visiting Consultant",
-      since: "2021-06-01",
-    },
-  ],
-  status: "verified",
-  prcId: "PRC-123456",
-  prcExpiry: "2025-12-31",
-  medicalLicense: "ML-789012",
-  joinDate: "2023-01-15",
-  lastLogin: "2024-01-20 14:30:00",
-  avatar: null,
-  personalInfo: {
-    address: "123 Lahug Boulevard, Cebu City, Philippines",
-    dateOfBirth: "1985-03-15",
-    gender: "Female",
-    civilStatus: "Married",
-  },
-  education: [
-    {
-      degree: "Doctor of Medicine",
-      school: "University of the Philippines College of Medicine",
-      year: "2009",
-    },
-    {
-      degree: "Residency in Internal Medicine",
-      school: "Philippine General Hospital",
-      year: "2013",
-    },
-    {
-      degree: "Fellowship in Cardiology",
-      school: "Philippine Heart Center",
-      year: "2015",
-    },
-  ],
-  certifications: [
-    {
-      name: "Board Certified in Internal Medicine",
-      issuer: "Philippine Board of Internal Medicine",
-      date: "2013-07-15",
-      expiry: "2026-07-15",
-    },
-    {
-      name: "Board Certified in Cardiology",
-      issuer: "Philippine Heart Association",
-      date: "2015-09-20",
-      expiry: "2028-09-20",
-    },
-  ],
-  documents: [
-    {
-      name: "PRC License",
-      type: "prc_license",
-      uploadDate: "2023-01-10",
-      status: "verified",
-    },
-    {
-      name: "Medical Diploma",
-      type: "diploma",
-      uploadDate: "2023-01-10",
-      status: "verified",
-    },
-    {
-      name: "Board Certificate - Internal Medicine",
-      type: "certification",
-      uploadDate: "2023-01-10",
-      status: "verified",
-    },
-    {
-      name: "Board Certificate - Cardiology",
-      type: "certification",
-      uploadDate: "2023-01-10",
-      status: "verified",
-    },
-  ],
-  verificationLogs: [
-    {
-      date: "2023-01-15 10:30:00",
-      action: "Verified",
-      admin: "Admin User",
-      notes:
-        "All documents verified successfully. PRC license valid until 2025.",
-    },
-    {
-      date: "2023-01-12 14:15:00",
-      action: "Documents Reviewed",
-      admin: "Admin User",
-      notes:
-        "Initial document review completed. All required documents present.",
-    },
-    {
-      date: "2023-01-10 09:00:00",
-      action: "Application Submitted",
-      admin: "System",
-      notes: "Doctor application submitted with all required documents.",
-    },
-  ],
-};
-
 export default function DoctorDetailPage() {
-  const [doctor] = useState(mockDoctor);
+  const params = useParams();
+  const doctorId = params.id as string;
+  const { doctors, loading, error } = useRealDoctors();
+  const [verificationStatus, setVerificationStatus] = useState("");
+  const [verificationNotes, setVerificationNotes] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
+  // Use the Firebase-integrated schedule data hook
   const {
     schedules,
     clinics,
+    loading: scheduleLoading,
+    error: scheduleError,
     handleScheduleAdd,
     handleScheduleEdit,
     handleScheduleDelete,
     handleClinicAdd,
     handleClinicEdit,
     handleClinicDelete,
-  } = useScheduleData(doctor.id.toString());
+  } = useScheduleData(doctorId);
 
-  const [verificationStatus, setVerificationStatus] = useState(doctor.status);
-  const [verificationNotes, setVerificationNotes] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  // Find the specific doctor from Firebase data
+  const doctor = doctors.find(d => d.id === doctorId);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <DashboardLayout title="">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading doctor details...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <DashboardLayout title="">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="text-red-500 mb-4">⚠️</div>
+            <p className="text-red-600 mb-2">Failed to load doctor details</p>
+            <p className="text-muted-foreground text-sm">{error}</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show not found state
+  if (!doctor) {
+    return (
+      <DashboardLayout title="">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="text-gray-500 mb-4">👤</div>
+            <p className="text-gray-600 mb-2">Doctor not found</p>
+            <p className="text-muted-foreground text-sm">The requested doctor could not be found.</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Initialize verification status from doctor data
+  useEffect(() => {
+    if (doctor) {
+      setVerificationStatus(doctor.status || 'pending');
+    }
+  }, [doctor]);
 
   const handleVerificationSubmit = async () => {
     setIsSaving(true);
@@ -225,32 +172,27 @@ export default function DoctorDetailPage() {
   };
 
   return (
-    <DashboardLayout title={`${doctor.name} - Doctor Details`}>
+    <DashboardLayout title={`${doctor.firstName} ${doctor.lastName} - Doctor Details`}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="flex items-start space-x-4">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={doctor.avatar || ""} />
+              <AvatarImage src={doctor.profileImageUrl || ""} />
               <AvatarFallback className="text-lg">
-                {doctor.name
+                {`${doctor.firstName} ${doctor.lastName}`
                   .split(" ")
                   .map((n) => n[0])
                   .join("")}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-3xl font-bold">{doctor.name}</h1>
+              <h1 className="text-3xl font-bold">{`${doctor.firstName} ${doctor.lastName}`}</h1>
               <p className="text-lg text-muted-foreground">
                 {doctor.specialty}
               </p>
-              {doctor.subSpecialty && (
-                <p className="text-sm text-muted-foreground">
-                  {doctor.subSpecialty}
-                </p>
-              )}
               <div className="flex items-center space-x-4 mt-2">
-                <Badge className={getStatusColor(doctor.status)}>
+                <Badge className={getStatusColor(doctor.status || 'pending')}>
                   {doctor.status === "verified" && (
                     <Check className="h-3 w-3 mr-1" />
                   )}
@@ -260,10 +202,10 @@ export default function DoctorDetailPage() {
                   {doctor.status === "suspended" && (
                     <X className="h-3 w-3 mr-1" />
                   )}
-                  <span className="capitalize">{doctor.status}</span>
+                  <span className="capitalize">{doctor.status || 'pending'}</span>
                 </Badge>
                 <span className="text-sm text-muted-foreground">
-                  Joined {new Date(doctor.joinDate).toLocaleDateString()}
+                  Joined {new Date(doctor.createdAt || Date.now()).toLocaleDateString()}
                 </span>
               </div>
             </div>
@@ -303,23 +245,21 @@ export default function DoctorDetailPage() {
                 <CardContent className="space-y-4">
                   <div className="flex items-center space-x-3">
                     <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span>{doctor.email}</span>
+                    <span>{doctor.email || 'No email'}</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>{doctor.phone}</span>
+                    <span>{doctor.contactNumber}</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>{doctor.personalInfo.address}</span>
+                    <span>{doctor.address || 'No address'}</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>
                       Born{" "}
-                      {new Date(
-                        doctor.personalInfo.dateOfBirth
-                      ).toLocaleDateString()}
+                      {doctor.dateOfBirth ? new Date(doctor.dateOfBirth).toLocaleDateString() : 'Not specified'}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-4 pt-2">
@@ -327,13 +267,13 @@ export default function DoctorDetailPage() {
                       <p className="text-sm font-medium text-muted-foreground">
                         Gender
                       </p>
-                      <p>{doctor.personalInfo.gender}</p>
+                      <p>{doctor.gender || 'Not specified'}</p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">
                         Civil Status
                       </p>
-                      <p>{doctor.personalInfo.civilStatus}</p>
+                      <p>{doctor.civilStatus || 'Not specified'}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -352,25 +292,25 @@ export default function DoctorDetailPage() {
                     <p className="text-sm font-medium text-muted-foreground">
                       PRC ID
                     </p>
-                    <p>{doctor.prcId}</p>
+                    <p>{doctor.prcId || 'Not specified'}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
                       PRC Expiry
                     </p>
-                    <p>{new Date(doctor.prcExpiry).toLocaleDateString()}</p>
+                    <p>{doctor.prcExpiryDate ? new Date(doctor.prcExpiryDate).toLocaleDateString() : 'Not specified'}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
                       Medical License
                     </p>
-                    <p>{doctor.medicalLicense}</p>
+                    <p>{doctor.medicalLicenseNumber || 'Not specified'}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
                       Last Login
                     </p>
-                    <p>{new Date(doctor.lastLogin).toLocaleString()}</p>
+                    <p>{doctor.lastLogin ? new Date(doctor.lastLogin).toLocaleString() : 'Not specified'}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -386,25 +326,27 @@ export default function DoctorDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {doctor.clinics.map((clinic, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 border rounded-lg"
-                    >
-                      <div>
-                        <h4 className="font-medium">{clinic.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {clinic.role}
-                        </p>
+                  {doctor.clinicAffiliations && doctor.clinicAffiliations.length > 0 ? (
+                    doctor.clinicAffiliations.map((clinicId, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
+                        <div>
+                          <h4 className="font-medium">Clinic ID: {clinicId}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Affiliated Clinic
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Status</p>
+                          <p className="text-sm">Active</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Since</p>
-                        <p className="text-sm">
-                          {new Date(clinic.since).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground">No clinic affiliations</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -419,17 +361,21 @@ export default function DoctorDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {doctor.education.map((edu, index) => (
-                    <div key={index} className="border-l-2 border-primary pl-4">
-                      <h4 className="font-medium">{edu.degree}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {edu.school}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Graduated {edu.year}
-                      </p>
-                    </div>
-                  ))}
+                  {doctor.education && doctor.education.length > 0 ? (
+                    doctor.education.map((edu, index) => (
+                      <div key={index} className="border-l-2 border-primary pl-4">
+                        <h4 className="font-medium">{edu.degree}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {edu.university || edu.institution || 'Institution not specified'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Graduated {edu.year}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground">No education information available</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -451,37 +397,30 @@ export default function DoctorDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {doctor.documents.map((doc, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-3 border rounded-lg"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-sm font-medium">{doc.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Uploaded{" "}
-                              {new Date(doc.uploadDate).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge
-                            variant="outline"
-                            className={getDocumentStatusColor(doc.status)}
-                          >
-                            {doc.status === "verified" && (
-                              <Check className="h-3 w-3 mr-1" />
-                            )}
-                            {doc.status}
-                          </Badge>
-                          <Button variant="ghost" size="icon">
-                            <Download className="h-4 w-4" />
-                          </Button>
+                    <p className="text-muted-foreground">Document management will be available in future updates.</p>
+                    <div className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">PRC License</p>
+                          <p className="text-xs text-muted-foreground">
+                            License Document
+                          </p>
                         </div>
                       </div>
-                    ))}
+                      <div className="flex items-center space-x-2">
+                        <Badge
+                          variant="outline"
+                          className="text-green-600"
+                        >
+                          <Check className="h-3 w-3 mr-1" />
+                          verified
+                        </Badge>
+                        <Button variant="ghost" size="icon">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                   <Button variant="outline" className="w-full mt-4">
                     <Upload className="h-4 w-4 mr-2" />
@@ -500,23 +439,62 @@ export default function DoctorDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {doctor.certifications.map((cert, index) => (
-                      <div key={index} className="p-4 border rounded-lg">
-                        <h4 className="font-medium">{cert.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {cert.issuer}
-                        </p>
-                        <div className="flex justify-between mt-2 text-sm">
-                          <span>
-                            Issued: {new Date(cert.date).toLocaleDateString()}
-                          </span>
-                          <span>
-                            Expires:{" "}
-                            {new Date(cert.expiry).toLocaleDateString()}
-                          </span>
+                    {doctor.boardCertifications && doctor.boardCertifications.length > 0 ? (
+                      doctor.boardCertifications.map((cert, index) => (
+                        <div key={index} className="p-4 border rounded-lg">
+                          <h4 className="font-medium">{cert}</h4>
+                          <p className="text-xs text-muted-foreground">Board Certification</p>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">No board certifications listed</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="card-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <GraduationCap className="h-5 w-5 mr-2" />
+                    Fellowships
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {doctor.fellowships && doctor.fellowships.length > 0 ? (
+                      doctor.fellowships.map((fellow, index) => (
+                        <div key={index} className="p-4 border rounded-lg">
+                          <h4 className="font-medium">{fellow}</h4>
+                          <p className="text-xs text-muted-foreground">Fellowship</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">No fellowships listed</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="card-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Award className="h-5 w-5 mr-2" />
+                    Accreditations
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {doctor.accreditations && doctor.accreditations.length > 0 ? (
+                      doctor.accreditations.map((acc, index) => (
+                        <div key={index} className="p-4 border rounded-lg">
+                          <h4 className="font-medium">{acc}</h4>
+                          <p className="text-xs text-muted-foreground">Accreditation</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">No accreditations listed</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -536,8 +514,13 @@ export default function DoctorDetailPage() {
                 </CardDescription>
               </CardHeader>
               <DoctorInfoBanner
-                doctor={{ ...doctor, id: doctor.id.toString() }}
+                doctor={{ ...doctor, id: doctor.id?.toString() || '', name: `${doctor.firstName} ${doctor.lastName}` }}
               />
+              {scheduleError && (
+                <div className="p-4 mb-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm">{scheduleError}</p>
+                </div>
+              )}
               <div className="grid gap-6 lg:grid-cols-2">
                 <ScheduleCard
                   schedules={schedules}
@@ -649,23 +632,19 @@ export default function DoctorDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {doctor.verificationLogs.map((log, index) => (
-                    <div
-                      key={index}
-                      className="border-l-2 border-primary pl-4 pb-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">{log.action}</h4>
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(log.date).toLocaleString()}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        By: {log.admin}
-                      </p>
-                      <p className="text-sm mt-1">{log.notes}</p>
+                  <p className="text-muted-foreground">Verification history will be available in future updates.</p>
+                  <div className="border-l-2 border-primary pl-4 pb-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Status Updated</h4>
+                      <span className="text-sm text-muted-foreground">
+                        {new Date().toLocaleString()}
+                      </span>
                     </div>
-                  ))}
+                    <p className="text-sm text-muted-foreground">
+                      By: Admin User
+                    </p>
+                    <p className="text-sm mt-1">Doctor status changed to verified</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>

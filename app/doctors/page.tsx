@@ -53,73 +53,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-const mockDoctors = [
-  {
-    id: 1,
-    name: "Dr. Maria Santos",
-    email: "maria.santos@email.com",
-    specialty: "Cardiology",
-    clinics: ["Cebu Heart Center", "Metro Manila Hospital"],
-    status: "verified",
-    prcId: "PRC-123456",
-    prcExpiry: "2025-12-31",
-    phone: "+63 917 123 4567",
-    joinDate: "2023-01-15",
-    avatar: null,
-  },
-  {
-    id: 2,
-    name: "Dr. Juan Dela Cruz",
-    email: "juan.delacruz@email.com",
-    specialty: "Pediatrics",
-    clinics: ["Children's Hospital Cebu"],
-    status: "pending",
-    prcId: "PRC-234567",
-    prcExpiry: "2024-06-30",
-    phone: "+63 917 234 5678",
-    joinDate: "2023-03-20",
-    avatar: null,
-  },
-  {
-    id: 3,
-    name: "Dr. Ana Rodriguez",
-    email: "ana.rodriguez@email.com",
-    specialty: "Dermatology",
-    clinics: ["Skin Care Clinic", "Beauty Med Center"],
-    status: "verified",
-    prcId: "PRC-345678",
-    prcExpiry: "2025-09-15",
-    phone: "+63 917 345 6789",
-    joinDate: "2022-11-10",
-    avatar: null,
-  },
-  {
-    id: 4,
-    name: "Dr. Carlos Mendoza",
-    email: "carlos.mendoza@email.com",
-    specialty: "Orthopedics",
-    clinics: ["Bone & Joint Clinic"],
-    status: "suspended",
-    prcId: "PRC-456789",
-    prcExpiry: "2024-03-20",
-    phone: "+63 917 456 7890",
-    joinDate: "2023-08-05",
-    avatar: null,
-  },
-  {
-    id: 5,
-    name: "Dr. Elena Reyes",
-    email: "elena.reyes@email.com",
-    specialty: "Neurology",
-    clinics: ["Neuro Center Cebu"],
-    status: "pending",
-    prcId: "PRC-567890",
-    prcExpiry: "2025-01-10",
-    phone: "+63 917 567 8901",
-    joinDate: "2023-12-01",
-    avatar: null,
-  },
-];
+
 
 const specialties = [
   "All",
@@ -218,22 +152,26 @@ export default function DoctorsPage() {
         {/* Header Actions */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Doctor Management</h2>
+            <h2 className="text-2xl font-bold">Specialist Doctor Management</h2>
             <p className="text-muted-foreground">
-              Manage healthcare professionals and their credentials
+              Manage specialist healthcare professionals and their credentials
             </p>
           </div>
-          <Link href="/doctors/add">
-            <div className="flex gap-2">
-              <Button>
+          <div className="flex gap-2">
+            <Button asChild>
+              <Link href="/doctors/add">
                 <Plus className="h-4 w-4 mr-2" />
-                Add Doctor
-              </Button>
-            </div>
-          </Link>
+                Add Specialist
+              </Link>
+            </Button>
+            <Button variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Export List
+            </Button>
+          </div>
         </div>
 
-        {/* Filters */}
+        {/* Search and Filters */}
         <Card className="card-shadow">
           <CardContent className="pt-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center">
@@ -241,7 +179,7 @@ export default function DoctorsPage() {
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search doctors by name, email, or specialty..."
+                    placeholder="Search specialists by name, email, or specialty..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-8"
@@ -289,10 +227,10 @@ export default function DoctorsPage() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Users className="h-5 w-5 mr-2" />
-              Doctors ({filteredDoctors.length})
+              Specialist Doctors ({filteredDoctors.length})
             </CardTitle>
             <CardDescription>
-              Comprehensive list of healthcare professionals
+              Comprehensive list of specialist healthcare professionals
             </CardDescription>
           </CardHeader>
           <CardContent>

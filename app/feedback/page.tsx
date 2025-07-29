@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useFeedback, useFeedbackByStatus, useFeedbackActions, useFeedbackStats } from '@/hooks';
+import { useRealFeedback } from '@/hooks/useRealData';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,73 +43,7 @@ import {
   Filter
 } from 'lucide-react';
 
-const mockFeedback = [
-  {
-    id: 1,
-    patientName: 'Juan Carlos',
-    patientInitials: 'JC',
-    doctorName: 'Dr. Maria Santos',
-    doctorSpecialty: 'Cardiology',
-    clinic: 'Cebu Heart Center',
-    rating: 5,
-    comment: 'Excellent service! Dr. Santos was very thorough and explained everything clearly. The clinic staff was also very accommodating.',
-    date: '2024-01-20T10:30:00',
-    tags: ['professional', 'thorough', 'excellent'],
-    status: 'reviewed'
-  },
-  {
-    id: 2,
-    patientName: 'Maria Lopez',
-    patientInitials: 'ML',
-    doctorName: 'Dr. Juan Dela Cruz',
-    doctorSpecialty: 'Pediatrics',
-    clinic: 'Children\'s Hospital Cebu',
-    rating: 4,
-    comment: 'Good doctor, my child felt comfortable during the consultation. However, the waiting time was quite long.',
-    date: '2024-01-19T14:15:00',
-    tags: ['good', 'comfortable', 'long wait'],
-    status: 'pending'
-  },
-  {
-    id: 3,
-    patientName: 'Robert Chen',
-    patientInitials: 'RC',
-    doctorName: 'Dr. Ana Rodriguez',
-    doctorSpecialty: 'Dermatology',
-    clinic: 'Skin Care Clinic',
-    rating: 5,
-    comment: 'Amazing results! Dr. Rodriguez solved my skin problem that I\'ve had for years. Highly recommend!',
-    date: '2024-01-18T16:45:00',
-    tags: ['amazing', 'effective', 'recommended'],
-    status: 'reviewed'
-  },
-  {
-    id: 4,
-    patientName: 'Sarah Johnson',
-    patientInitials: 'SJ',
-    doctorName: 'Dr. Carlos Mendoza',
-    doctorSpecialty: 'Orthopedics',
-    clinic: 'Bone & Joint Clinic',
-    rating: 2,
-    comment: 'The doctor seemed rushed and didn\'t fully address my concerns. The treatment didn\'t help much.',
-    date: '2024-01-17T11:20:00',
-    tags: ['rushed', 'concerns not addressed', 'ineffective'],
-    status: 'flagged'
-  },
-  {
-    id: 5,
-    patientName: 'Miguel Reyes',
-    patientInitials: 'MR',
-    doctorName: 'Dr. Elena Reyes',
-    doctorSpecialty: 'Neurology',
-    clinic: 'Neuro Center Cebu',
-    rating: 4,
-    comment: 'Knowledgeable doctor with good bedside manner. The diagnosis was accurate and treatment is working well.',
-    date: '2024-01-16T09:30:00',
-    tags: ['knowledgeable', 'accurate', 'effective'],
-    status: 'reviewed'
-  }
-];
+
 
 const ratings = ['All', '5 Stars', '4 Stars', '3 Stars', '2 Stars', '1 Star'];
 const statuses = ['All', 'Pending', 'Reviewed', 'Flagged'];
@@ -118,17 +52,17 @@ export default function FeedbackPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRating, setSelectedRating] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
-  const [feedback] = useState(mockFeedback);
-  const [selectedFeedback, setSelectedFeedback] = useState<typeof mockFeedback[0] | null>(null);
+  const { feedback, loading, error } = useRealFeedback();
+  const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
 
   const filteredFeedback = feedback.filter(item => {
-    const matchesSearch = item.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         item.doctorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         item.clinic.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (item.patientName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (item.doctorName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (item.clinic || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRating = selectedRating === 'All' || 
-                         selectedRating === `${item.rating} Star${item.rating !== 1 ? 's' : ''}`;
+                         selectedRating === `${item.rating || 0} Star${(item.rating || 0) !== 1 ? 's' : ''}`;
     const matchesStatus = selectedStatus === 'All' || 
-                         item.status.toLowerCase() === selectedStatus.toLowerCase();
+                         (item.status || '').toLowerCase() === selectedStatus.toLowerCase();
 
     return matchesSearch && matchesRating && matchesStatus;
   });
@@ -165,7 +99,36 @@ export default function FeedbackPage() {
     ));
   };
 
-  const averageRating = feedback.reduce((sum, item) => sum + item.rating, 0) / feedback.length;
+  // Show loading state
+  if (loading) {
+    return (
+      <DashboardLayout title="">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading feedback data...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <DashboardLayout title="">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="text-red-500 mb-4">⚠️</div>
+            <p className="text-red-600 mb-2">Failed to load feedback data</p>
+            <p className="text-muted-foreground text-sm">{error}</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const averageRating = feedback.length > 0 ? feedback.reduce((sum, item) => sum + (item.rating || 0), 0) / feedback.length : 0;
   const totalFeedback = feedback.length;
   const pendingReviews = feedback.filter(item => item.status === 'pending').length;
   const flaggedReviews = feedback.filter(item => item.status === 'flagged').length;
@@ -337,28 +300,28 @@ export default function FeedbackPage() {
                           <div className="text-sm text-muted-foreground">{item.doctorSpecialty}</div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{item.clinic}</TableCell>
+                      <TableCell className="text-sm">{item.clinic || 'N/A'}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-1">
-                          <span className={`font-medium ${getRatingColor(item.rating)}`}>
-                            {item.rating}
+                          <span className={`font-medium ${getRatingColor(item.rating || 0)}`}>
+                            {item.rating || 0}
                           </span>
                           <div className="flex">
-                            {renderStars(item.rating)}
+                            {renderStars(item.rating || 0)}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="max-w-xs">
-                        <p className="text-sm truncate">{item.comment}</p>
+                        <p className="text-sm truncate">{item.comment || 'No comment'}</p>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {item.tags.slice(0, 2).map((tag, index) => (
+                          {(item.tags || []).slice(0, 2).map((tag, index) => (
                             <Badge key={index} variant="secondary" className="text-xs">
                               {tag}
                             </Badge>
                           ))}
-                          {item.tags.length > 2 && (
+                          {(item.tags || []).length > 2 && (
                             <span className="text-xs text-muted-foreground">
-                              +{item.tags.length - 2} more
+                              +{(item.tags || []).length - 2} more
                             </span>
                           )}
                         </div>
@@ -366,12 +329,12 @@ export default function FeedbackPage() {
                       <TableCell className="text-sm">
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-3 w-3 text-muted-foreground" />
-                          <span>{new Date(item.date).toLocaleDateString()}</span>
+                          <span>{new Date(item.date || item.createdAt || Date.now()).toLocaleDateString()}</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(item.status)}>
-                          {item.status}
+                        <Badge className={getStatusColor(item.status || 'pending')}>
+                          {item.status || 'pending'}
                         </Badge>
                       </TableCell>
                       <TableCell>

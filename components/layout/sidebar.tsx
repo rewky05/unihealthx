@@ -28,7 +28,7 @@ const navigationItems = [
     icon: BarChart3,
   },
   {
-    title: "Doctor Management",
+    title: "Specialist Management",
     href: "/doctors",
     icon: Users,
   },

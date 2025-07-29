@@ -292,6 +292,37 @@ export function useRealUsers() {
   };
 }
 
+// Hook for activity logs data
+export function useRealActivityLogs() {
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchActivityLogs = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await realDataService.getRecentActivity(50); // Get last 50 activities
+      setActivityLogs(data);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchActivityLogs();
+  }, [fetchActivityLogs]);
+
+  return {
+    activityLogs,
+    loading,
+    error,
+    refresh: fetchActivityLogs
+  };
+}
+
 // Combined hook for all real data
 export function useRealHealthcareData() {
   const doctors = useRealDoctors();
@@ -302,6 +333,7 @@ export function useRealHealthcareData() {
   const patients = useRealPatients();
   const referrals = useRealReferrals();
   const users = useRealUsers();
+  const activityLogs = useRealActivityLogs();
 
   const loading = doctors.loading || clinics.loading || feedback.loading || dashboard.loading;
   const error = doctors.error || clinics.error || feedback.error || dashboard.error;
@@ -316,6 +348,7 @@ export function useRealHealthcareData() {
     patients: patients.patients,
     referrals: referrals.referrals,
     users: users.users,
+    activityLogs: activityLogs.activityLogs,
     loading,
     error,
     
@@ -327,6 +360,7 @@ export function useRealHealthcareData() {
     appointmentsHook: appointments,
     patientsHook: patients,
     referralsHook: referrals,
-    usersHook: users
+    usersHook: users,
+    activityLogsHook: activityLogs
   };
 }

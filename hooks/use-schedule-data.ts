@@ -1,115 +1,159 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { ref, get, set, push, remove, onValue } from 'firebase/database';
+import { db } from '@/lib/firebase/config';
 import type { Schedule } from '@/components/schedules/schedule-card';
 import type { Clinic } from '@/components/schedules/clinic-card';
 
-const mockDoctors = [
-  { id: 'maria', name: 'Dr. Maria Santos', specialty: 'Cardiology' },
-  { id: 'juan', name: 'Dr. Juan Rodriguez', specialty: 'Pediatrics' },
-  { id: 'ana', name: 'Dr. Ana Villanueva', specialty: 'Dermatology' },
-];
-
-const defaultSchedules: Schedule[] = [
-  { id: '1', day: 'Monday', clinic: 'Cebu Medical Center', startTime: '09:00', endTime: '17:00' },
-  { id: '2', day: 'Tuesday', clinic: 'Metro Cebu Hospital', startTime: '09:00', endTime: '17:00' },
-  { id: '3', day: 'Wednesday', clinic: 'Skin Care Clinic', startTime: '09:00', endTime: '17:00' },
-  { id: '4', day: 'Thursday', clinic: 'Cebu Medical Center', startTime: '09:00', endTime: '17:00' },
-  { id: '5', day: 'Friday', clinic: 'Metro Cebu Hospital', startTime: '09:00', endTime: '17:00' },
-];
-
-const defaultClinics: Clinic[] = [
-  {
-    id: '1',
-    name: 'Cebu Medical Center',
-    days: 'Mon, Wed, Fri',
-    hours: '09:00-17:00',
-    role: 'Senior Consultant'
-  },
-  {
-    id: '2',
-    name: 'Metro Cebu Hospital',
-    days: 'Tue, Thu',
-    hours: '14:00-18:00',
-    role: 'Visiting Consultant'
-  },
-  {
-    id: '3',
-    name: 'Skin Care Clinic',
-    days: 'Sat',
-    hours: '08:00-12:00',
-    role: 'Consultant'
-  },
-];
-
-export function useScheduleData(initialDoctorId?: string) {
-  const [selectedDoctor, setSelectedDoctor] = useState(initialDoctorId || '');
+export function useScheduleData(doctorId?: string) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [clinics, setClinics] = useState<Clinic[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleDoctorSelect = (doctorId: string) => {
-    setSelectedDoctor(doctorId);
-    loadMockData(doctorId);
-  };
+  // Load schedules and clinics for the doctor
+  useEffect(() => {
+    if (!doctorId) return;
 
-  const loadMockData = (doctorId: string) => {
-    if (doctorId) {
-      setSchedules(defaultSchedules);
-      setClinics(defaultClinics);
-    } else {
-      setSchedules([]);
-      setClinics([]);
+    setLoading(true);
+    setError(null);
+
+    // Listen to schedules
+    const schedulesRef = ref(db, `schedules/${doctorId}`);
+    const schedulesUnsubscribe = onValue(schedulesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const schedulesList = Object.keys(data).map(id => ({
+          id,
+          ...data[id]
+        }));
+        setSchedules(schedulesList);
+      } else {
+        setSchedules([]);
+      }
+    }, (error) => {
+      console.error('Error loading schedules:', error);
+      setError('Failed to load schedules');
+    });
+
+    // Listen to clinics
+    const clinicsRef = ref(db, `clinics/${doctorId}`);
+    const clinicsUnsubscribe = onValue(clinicsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const clinicsList = Object.keys(data).map(id => ({
+          id,
+          ...data[id]
+        }));
+        setClinics(clinicsList);
+      } else {
+        setClinics([]);
+      }
+    }, (error) => {
+      console.error('Error loading clinics:', error);
+      setError('Failed to load clinics');
+    });
+
+    setLoading(false);
+
+    return () => {
+      schedulesUnsubscribe();
+      clinicsUnsubscribe();
+    };
+  }, [doctorId]);
+
+  const handleScheduleAdd = async (scheduleData: Omit<Schedule, 'id'>) => {
+    if (!doctorId) return;
+
+    try {
+      const schedulesRef = ref(db, `schedules/${doctorId}`);
+      const newScheduleRef = push(schedulesRef);
+      await set(newScheduleRef, {
+        ...scheduleData,
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error adding schedule:', error);
+      setError('Failed to add schedule');
     }
   };
 
-  // Load data on init if initial doctor is passed
-  useState(() => {
-    if (initialDoctorId) {
-      loadMockData(initialDoctorId);
+  const handleScheduleEdit = async (updatedSchedule: Schedule) => {
+    if (!doctorId) return;
+
+    try {
+      const scheduleRef = ref(db, `schedules/${doctorId}/${updatedSchedule.id}`);
+      await set(scheduleRef, {
+        ...updatedSchedule,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error updating schedule:', error);
+      setError('Failed to update schedule');
     }
-  });
-
-  const handleScheduleAdd = (scheduleData: Omit<Schedule, 'id'>) => {
-    const newSchedule: Schedule = {
-      ...scheduleData,
-      id: Date.now().toString()
-    };
-    setSchedules(prev => [...prev, newSchedule]);
   };
 
-  const handleScheduleEdit = (updatedSchedule: Schedule) => {
-    setSchedules(prev => prev.map(s => s.id === updatedSchedule.id ? updatedSchedule : s));
+  const handleScheduleDelete = async (scheduleId: string) => {
+    if (!doctorId) return;
+
+    try {
+      const scheduleRef = ref(db, `schedules/${doctorId}/${scheduleId}`);
+      await remove(scheduleRef);
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
+      setError('Failed to delete schedule');
+    }
   };
 
-  const handleScheduleDelete = (scheduleId: string) => {
-    setSchedules(prev => prev.filter(s => s.id !== scheduleId));
+  const handleClinicAdd = async (clinicData: Omit<Clinic, 'id'>) => {
+    if (!doctorId) return;
+
+    try {
+      const clinicsRef = ref(db, `clinics/${doctorId}`);
+      const newClinicRef = push(clinicsRef);
+      await set(newClinicRef, {
+        ...clinicData,
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error adding clinic:', error);
+      setError('Failed to add clinic');
+    }
   };
 
-  const handleClinicAdd = (clinicData: Omit<Clinic, 'id'>) => {
-    const newClinic: Clinic = {
-      ...clinicData,
-      id: Date.now().toString()
-    };
-    setClinics(prev => [...prev, newClinic]);
+  const handleClinicEdit = async (updatedClinic: Clinic) => {
+    if (!doctorId) return;
+
+    try {
+      const clinicRef = ref(db, `clinics/${doctorId}/${updatedClinic.id}`);
+      await set(clinicRef, {
+        ...updatedClinic,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error updating clinic:', error);
+      setError('Failed to update clinic');
+    }
   };
 
-  const handleClinicEdit = (updatedClinic: Clinic) => {
-    setClinics(prev => prev.map(c => c.id === updatedClinic.id ? updatedClinic : c));
-  };
+  const handleClinicDelete = async (clinicId: string) => {
+    if (!doctorId) return;
 
-  const handleClinicDelete = (clinicId: string) => {
-    setClinics(prev => prev.filter(c => c.id !== clinicId));
+    try {
+      const clinicRef = ref(db, `clinics/${doctorId}/${clinicId}`);
+      await remove(clinicRef);
+    } catch (error) {
+      console.error('Error deleting clinic:', error);
+      setError('Failed to delete clinic');
+    }
   };
-
-  const selectedDoctorData = mockDoctors.find(doc => doc.id === selectedDoctor);
 
   return {
-    doctors: mockDoctors,
-    selectedDoctor,
-    selectedDoctorData,
     schedules,
     clinics,
-    handleDoctorSelect,
+    loading,
+    error,
     handleScheduleAdd,
     handleScheduleEdit,
     handleScheduleDelete,

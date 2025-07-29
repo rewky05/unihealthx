@@ -178,7 +178,20 @@ export interface Referral {
   scheduleSlotPath: string;
 }
 
-// Dashboard stats derived from your data
+// Activity Logs - This will be created automatically by the system
+export interface ActivityLog {
+  id?: string;
+  timestamp: string;
+  action: string;
+  adminUserId: string;
+  adminEmail: string;
+  targetType: 'doctor' | 'clinic' | 'feedback' | 'appointment' | 'patient' | 'system';
+  targetId: string;
+  targetName: string;
+  details: Record<string, any>;
+}
+
+// Dashboard Stats - Calculated from other data
 export interface DashboardStats {
   totalDoctors: number;
   verifiedDoctors: number;
@@ -195,19 +208,7 @@ export interface DashboardStats {
   totalReferrals: number;
 }
 
-// Activity log for tracking changes
-export interface ActivityLog {
-  userId: string;
-  userEmail: string;
-  action: string;
-  category: 'doctor' | 'clinic' | 'feedback' | 'appointment' | 'patient' | 'system';
-  targetType: 'doctor' | 'clinic' | 'feedback' | 'appointment' | 'patient';
-  targetId: string;
-  details: Record<string, any>;
-  timestamp: string;
-}
-
-// API Response types
+// API Response wrapper
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -215,6 +216,7 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+// Paginated Response wrapper
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
@@ -223,7 +225,7 @@ export interface PaginatedResponse<T> {
   hasMore: boolean;
 }
 
-// Filter types
+// Filter interfaces
 export interface DoctorFilters {
   specialty?: string;
   status?: string;

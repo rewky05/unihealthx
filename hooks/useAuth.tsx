@@ -1,63 +1,124 @@
-import { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import { authService, type AdminUser } from '@/lib/auth/auth.service';
+'use client';
 
-// Auth context
-interface AuthContextType {
-  user: AdminUser | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  hasPermission: (permission: string) => boolean;
+import { createContext, useContext, useEffect, useState } from 'react';
+import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase/config';
+import { AUTH_CONFIG } from '@/lib/config/auth';
+
+interface User {
+  email: string;
+  role: 'superadmin' | 'admin';
+  isAuthenticated: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  signOut: () => Promise<void>;
+  isSuperadmin: () => boolean;
+  isAdmin: () => boolean;
+  refreshAuthState: () => void;
+}
 
-// Auth provider component
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AdminUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const checkSuperadminAuth = () => {
+    const storedRole = localStorage.getItem('userRole');
+    const storedEmail = localStorage.getItem('userEmail');
+    
+    if (storedRole === AUTH_CONFIG.ROLES.SUPERADMIN && storedEmail) {
+      return {
+        email: storedEmail,
+        role: 'superadmin' as const,
+        isAuthenticated: true,
+      };
+    }
+    return null;
+  };
+
+  const refreshAuthState = () => {
+    const superadminUser = checkSuperadminAuth();
+    if (superadminUser) {
+      setUser(superadminUser);
+    }
+  };
+
   useEffect(() => {
-    const unsubscribe = authService.onAuthStateChanged((user) => {
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        // Firebase user authenticated
+        const userRole = localStorage.getItem('userRole') as 'superadmin' | 'admin' || 'admin';
+        setUser({
+          email: firebaseUser.email || '',
+          role: userRole,
+          isAuthenticated: true,
+        });
+      } else {
+        // Check for superadmin in localStorage
+        const superadminUser = checkSuperadminAuth();
+        if (superadminUser) {
+          setUser(superadminUser);
+        } else {
+          setUser(null);
+        }
+      }
       setLoading(false);
     });
 
-    return unsubscribe;
-  }, []);
-
-  const signIn = useCallback(async (email: string, password: string) => {
-    setLoading(true);
-    try {
-      await authService.signIn(email, password);
-      // User state will be updated by the auth state listener
-    } catch (error) {
-      setLoading(false);
-      throw error;
+    // Also check superadmin auth on mount
+    const superadminUser = checkSuperadminAuth();
+    if (superadminUser) {
+      setUser(superadminUser);
     }
+
+    setLoading(false);
+
+    return () => unsubscribe();
   }, []);
 
-  const signOut = useCallback(async () => {
-    setLoading(true);
+  // Listen for localStorage changes (for superadmin login)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const superadminUser = checkSuperadminAuth();
+      if (superadminUser) {
+        setUser(superadminUser);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  const signOut = async () => {
     try {
-      await authService.signOut();
-      // User state will be updated by the auth state listener
+      await firebaseSignOut(auth);
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userEmail');
+      setUser(null);
     } catch (error) {
-      setLoading(false);
-      throw error;
+      console.error('Sign out error:', error);
     }
-  }, []);
+  };
 
-  const hasPermission = useCallback((permission: string) => {
-    return authService.hasPermission(user, permission);
-  }, [user]);
+  const isSuperadmin = () => {
+    return user?.role === 'superadmin';
+  };
+
+  const isAdmin = () => {
+    return user?.role === 'admin' || user?.role === 'superadmin';
+  };
 
   const value = {
     user,
     loading,
-    signIn,
     signOut,
-    hasPermission
+    isSuperadmin,
+    isAdmin,
+    refreshAuthState,
   };
 
   return (
@@ -67,227 +128,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Main auth hook
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
-
-// Hook for login functionality
-export function useLogin() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { signIn } = useAuth();
-
-  const login = useCallback(async (email: string, password: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      await signIn(email, password);
-    } catch (err: any) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [signIn]);
-
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
-  return {
-    login,
-    loading,
-    error,
-    clearError
-  };
-}
-
-// Hook for logout functionality
-export function useLogout() {
-  const [loading, setLoading] = useState(false);
-  const { signOut } = useAuth();
-
-  const logout = useCallback(async () => {
-    setLoading(true);
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [signOut]);
-
-  return {
-    logout,
-    loading
-  };
-}
-
-// Hook for password reset
-export function usePasswordReset() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-
-  const sendPasswordReset = useCallback(async (email: string) => {
-    setLoading(true);
-    setError(null);
-    setSuccess(false);
-
-    try {
-      await authService.sendPasswordReset(email);
-      setSuccess(true);
-    } catch (err: any) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const clearState = useCallback(() => {
-    setError(null);
-    setSuccess(false);
-  }, []);
-
-  return {
-    sendPasswordReset,
-    loading,
-    error,
-    success,
-    clearState
-  };
-}
-
-// Hook for admin user management
-export function useAdminUsers() {
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchAdminUsers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const users = await authService.getAllAdminUsers();
-      setAdminUsers(users);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchAdminUsers();
-  }, [fetchAdminUsers]);
-
-  const createAdminUser = useCallback(async (
-    email: string,
-    password: string,
-    displayName: string,
-    role: AdminUser['role']
-  ) => {
-    try {
-      const newUser = await authService.createAdminUser(email, password, displayName, role);
-      setAdminUsers(prev => [...prev, newUser]);
-      return newUser;
-    } catch (error) {
-      throw error;
-    }
-  }, []);
-
-  const updateAdminUser = useCallback(async (uid: string, updates: Partial<AdminUser>) => {
-    try {
-      await authService.updateAdminUser(uid, updates);
-      setAdminUsers(prev => 
-        prev.map(user => 
-          user.uid === uid ? { ...user, ...updates } : user
-        )
-      );
-    } catch (error) {
-      throw error;
-    }
-  }, []);
-
-  const deactivateAdminUser = useCallback(async (uid: string) => {
-    try {
-      await authService.deactivateAdminUser(uid);
-      setAdminUsers(prev => 
-        prev.map(user => 
-          user.uid === uid ? { ...user, isActive: false } : user
-        )
-      );
-    } catch (error) {
-      throw error;
-    }
-  }, []);
-
-  return {
-    adminUsers,
-    loading,
-    error,
-    refresh: fetchAdminUsers,
-    createAdminUser,
-    updateAdminUser,
-    deactivateAdminUser
-  };
-}
-
-// Hook for checking permissions
-export function usePermissions() {
-  const { user, hasPermission } = useAuth();
-
-  const canRead = useCallback((resource: string) => {
-    return hasPermission(`${resource}:read`);
-  }, [hasPermission]);
-
-  const canWrite = useCallback((resource: string) => {
-    return hasPermission(`${resource}:write`);
-  }, [hasPermission]);
-
-  const canDelete = useCallback((resource: string) => {
-    return hasPermission(`${resource}:delete`);
-  }, [hasPermission]);
-
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
-  const isSuperAdmin = user?.role === 'super_admin';
-  const isModerator = user?.role === 'moderator';
-
-  return {
-    user,
-    canRead,
-    canWrite,
-    canDelete,
-    hasPermission,
-    isAdmin,
-    isSuperAdmin,
-    isModerator
-  };
-}
-
-// Hook for protected routes
-export function useRequireAuth(permission?: string) {
-  const { user, loading } = useAuth();
-  const { hasPermission } = usePermissions();
-
-  const isAuthenticated = !!user;
-  const hasRequiredPermission = permission ? hasPermission(permission) : true;
-  const canAccess = isAuthenticated && hasRequiredPermission;
-
-  return {
-    user,
-    loading,
-    isAuthenticated,
-    hasRequiredPermission,
-    canAccess
-  };
 }
