@@ -23,8 +23,7 @@ import {
 } from "lucide-react";
 import { ClinicScheduleDialog } from "./clinic-schedule-dialog";
 import type {
-  ClinicAffiliation,
-  ClinicScheduleBlock,
+  SpecialistSchedule,
 } from "@/app/doctors/add/page";
 import Link from "next/link";
 
@@ -42,7 +41,7 @@ interface Certification {
 }
 
 interface AffiliationsEducationData {
-  clinics: ClinicAffiliation[];
+  schedules: SpecialistSchedule[];
   education: Education[];
   certifications: Certification[];
 }
@@ -56,35 +55,35 @@ export function AffiliationsEducationForm({
   data,
   onUpdate,
 }: AffiliationsEducationFormProps) {
-  const [isClinicDialogOpen, setIsClinicDialogOpen] = useState(false);
-  const [editingClinic, setEditingClinic] = useState<ClinicAffiliation | null>(
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<SpecialistSchedule | null>(
     null
   );
 
-  const handleAddClinic = () => {
-    setEditingClinic(null);
-    setIsClinicDialogOpen(true);
+  const handleAddSchedule = () => {
+    setEditingSchedule(null);
+    setIsScheduleDialogOpen(true);
   };
 
-  const handleEditClinic = (clinic: ClinicAffiliation) => {
-    setEditingClinic(clinic);
-    setIsClinicDialogOpen(true);
+  const handleEditSchedule = (schedule: SpecialistSchedule) => {
+    setEditingSchedule(schedule);
+    setIsScheduleDialogOpen(true);
   };
 
-  const handleClinicSave = (clinicData: Omit<ClinicAffiliation, "id">) => {
-    if (editingClinic) {
-      const updatedClinics = data.clinics.map((c) =>
-        c.id === editingClinic.id ? { ...clinicData, id: editingClinic.id } : c
+  const handleScheduleSave = (scheduleData: Omit<SpecialistSchedule, "id">) => {
+    if (editingSchedule) {
+      const updatedSchedules = data.schedules.map((s) =>
+        s.id === editingSchedule.id ? { ...scheduleData, id: editingSchedule.id } : s
       );
-      onUpdate({ clinics: updatedClinics });
+      onUpdate({ schedules: updatedSchedules });
     } else {
-      const newClinic: ClinicAffiliation = {
-        ...clinicData,
+      const newSchedule: SpecialistSchedule = {
+        ...scheduleData,
         id: Date.now().toString(),
       };
-      onUpdate({ clinics: [...data.clinics, newClinic] });
+      onUpdate({ schedules: [...data.schedules, newSchedule] });
     }
-    setIsClinicDialogOpen(false);
+    setIsScheduleDialogOpen(false);
   };
   const handleAddEducation = () => {
     // TODO: Open education dialog
@@ -96,9 +95,9 @@ export function AffiliationsEducationForm({
     console.log("Add certification clicked");
   };
 
-  const removeClinic = (index: number) => {
-    const updatedClinics = data.clinics.filter((_, i) => i !== index);
-    onUpdate({ clinics: updatedClinics });
+  const removeSchedule = (index: number) => {
+    const updatedSchedules = data.schedules.filter((_, i) => i !== index);
+    onUpdate({ schedules: updatedSchedules });
   };
 
   const removeEducation = (index: number) => {
@@ -114,6 +113,9 @@ export function AffiliationsEducationForm({
   };
 
   const getDayNames = (dayNumbers: number[]) => {
+    if (!dayNumbers || !Array.isArray(dayNumbers)) {
+      return 'No days specified';
+    }
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     return dayNumbers
       .sort()
@@ -123,89 +125,81 @@ export function AffiliationsEducationForm({
 
   return (
     <div className="space-y-6">
-      {/* Clinic Affiliations */}
+      {/* Schedule Management */}
       <Card className="card-shadow">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center">
-                <Building className="h-5 w-5 mr-2" />
-                Clinic Affiliations
+                <Calendar className="h-5 w-5 mr-2" />
+                Schedule Management
               </CardTitle>
               <CardDescription>
-                Add hospitals and clinics where the doctor practices
+                Add doctor&apos;s availability and clinic schedules
               </CardDescription>
             </div>
-            <Button onClick={handleAddClinic} size="sm" variant="outline">
+            <Button onClick={handleAddSchedule} size="sm" variant="outline">
               <Plus className="h-4 w-4 mr-2" />
-              Add Clinic
+              Add Schedule
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {data.clinics.length === 0 ? (
+          {data.schedules.length === 0 ? (
             <div className="text-center py-8 border-2 border-dashed border-muted rounded-lg">
-              <Building className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+              <Calendar className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
               <p className="text-muted-foreground mb-2">
-                No clinic affiliations added
+                No schedules configured
               </p>
               <p className="text-sm text-muted-foreground">
-                Click &quot;Add Clinic&quot; to add hospital or clinic affiliations
+                Click &quot;Add Schedule&quot; to set up doctor availability
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {data.clinics.map((clinic, index) => (
+              {data.schedules.map((schedule, index) => (
                 <div
-                  key={clinic.id || index}
+                  key={schedule.id || index}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors"
                 >
                   <div className="flex items-center space-x-3 flex-1">
-                    <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900 rounded-lg flex items-center justify-center">
-                      <Building className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                      <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-medium">{clinic.name}</h4>
+                      <h4 className="font-medium">{schedule.practiceLocation?.roomOrUnit || 'No room specified'}</h4>
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge variant="secondary" className="text-xs">
-                          {clinic.role}
+                          Clinic ID: {schedule.practiceLocation?.clinicId || 'No clinic'}
                         </Badge>
-                        {clinic.newClinicDetails && (
-                          <Badge variant="outline" className="text-xs">
-                            New Clinic
+                        {schedule.isActive ? (
+                          <Badge variant="default" className="text-xs bg-green-100 text-green-800">
+                            Active
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            Inactive
                           </Badge>
                         )}
                       </div>
                       <div className="flex items-center text-xs text-muted-foreground mt-1">
                         <Calendar className="h-3 w-3 mr-1" />
-                        Since {new Date(clinic.since).toLocaleDateString()}
+                        {getDayNames(schedule.recurrence?.dayOfWeek || [])}
                       </div>
-                      {clinic.schedules && clinic.schedules.length > 0 && (
+                      {schedule.slotTemplate && Object.keys(schedule.slotTemplate).length > 0 && (
                         <div className="mt-2 space-y-1">
-                          {clinic.schedules
-                            .slice(0, 2)
-                            .map((schedule, schedIndex) => (
-                              <div
-                                key={schedIndex}
-                                className="flex items-center text-xs text-muted-foreground"
-                              >
-                                <MapPin className="h-3 w-3 mr-1" />
-                                <span className="truncate mr-2">
-                                  {schedule.roomOrUnit}
-                                </span>
-                                <Clock className="h-3 w-3 mr-1" />
-                                <span>
-                                  {getDayNames(schedule.dayOfWeek)}{" "}
-                                  {schedule.startTime}-{schedule.endTime}
-                                </span>
-                              </div>
-                            ))}
-                          {clinic.schedules.length > 2 && (
-                            <div className="text-xs text-muted-foreground">
-                              +{clinic.schedules.length - 2} more schedule
-                              {clinic.schedules.length - 2 !== 1 ? "s" : ""}
-                            </div>
-                          )}
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3 mr-1" />
+                            <span>
+                              {Object.keys(schedule.slotTemplate).length} time slots
+                            </span>
+                          </div>
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <MapPin className="h-3 w-3 mr-1" />
+                            <span>
+                              Valid from {schedule.validFrom ? new Date(schedule.validFrom).toLocaleDateString() : 'Not set'}
+                            </span>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -214,14 +208,14 @@ export function AffiliationsEducationForm({
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleEditClinic(clinic)}
+                      onClick={() => handleEditSchedule(schedule)}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => removeClinic(index)}
+                      onClick={() => removeSchedule(index)}
                       className="text-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -377,12 +371,47 @@ export function AffiliationsEducationForm({
         </CardContent>
       </Card>
 
-      <ClinicScheduleDialog
-        open={isClinicDialogOpen}
-        onOpenChange={setIsClinicDialogOpen}
-        affiliation={editingClinic}
-        onSave={handleClinicSave}
-      />
+      {/* Schedule Dialog */}
+      {isScheduleDialogOpen && (
+        <ClinicScheduleDialog
+          open={isScheduleDialogOpen}
+          onOpenChange={setIsScheduleDialogOpen}
+          affiliation={editingSchedule ? {
+            id: editingSchedule.id,
+            clinicId: editingSchedule.practiceLocation?.clinicId,
+            name: editingSchedule.practiceLocation?.roomOrUnit || '',
+            since: editingSchedule.validFrom || new Date().toISOString().split('T')[0],
+            schedules: [editingSchedule],
+            newClinicDetails: {
+              name: editingSchedule.practiceLocation?.roomOrUnit || '',
+              addressLine: '',
+              contactNumber: '',
+              type: 'multi_specialty_clinic'
+            }
+          } : null}
+          onSave={(affiliation) => {
+            // Convert affiliation data to SpecialistSchedule format
+            const scheduleData = affiliation.schedules[0];
+            if (scheduleData) {
+              handleScheduleSave({
+                specialistId: scheduleData.specialistId || '',
+                isActive: true,
+                practiceLocation: {
+                  clinicId: scheduleData.practiceLocation?.clinicId || '',
+                  roomOrUnit: scheduleData.practiceLocation?.roomOrUnit || ''
+                },
+                recurrence: {
+                  dayOfWeek: scheduleData.recurrence?.dayOfWeek || [],
+                  type: scheduleData.recurrence?.type || 'weekly'
+                },
+                scheduleType: scheduleData.scheduleType || 'Weekly',
+                slotTemplate: scheduleData.slotTemplate || {},
+                validFrom: scheduleData.validFrom || new Date().toISOString().split('T')[0]
+              });
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

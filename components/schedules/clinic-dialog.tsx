@@ -6,7 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Clinic } from './clinic-card';
+
+interface Clinic {
+  id: string;
+  name: string;
+  days: string;
+  hours: string;
+}
 
 interface ClinicDialogProps {
   open: boolean;
@@ -15,13 +21,10 @@ interface ClinicDialogProps {
   onSave: (clinic: Omit<Clinic, 'id'>) => void;
 }
 
-const ROLES = ['Senior Consultant', 'Visiting Consultant', 'Consultant', 'Associate'];
-
 // export function is a named export, when importing use curly brace
 export function ClinicDialog({ open, onOpenChange, clinic, onSave }: ClinicDialogProps) {
   const [formData, setFormData] = useState({
     name: '',
-    role: '',
     days: '',
     hours: ''
   });
@@ -30,14 +33,12 @@ export function ClinicDialog({ open, onOpenChange, clinic, onSave }: ClinicDialo
     if (clinic) {
       setFormData({
         name: clinic.name,
-        role: clinic.role,
         days: clinic.days,
         hours: clinic.hours
       });
     } else {
       setFormData({
         name: '',
-        role: '',
         days: '',
         hours: ''
       });
@@ -45,19 +46,19 @@ export function ClinicDialog({ open, onOpenChange, clinic, onSave }: ClinicDialo
   }, [clinic, open]);
 
   const handleSave = () => {
-    if (formData.name && formData.role && formData.days && formData.hours) {
+    if (formData.name && formData.days && formData.hours) {
       onSave(formData);
     }
   };
 
-  const isValid = formData.name && formData.role && formData.days && formData.hours;
+  const isValid = formData.name && formData.days && formData.hours;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {clinic ? 'Edit Clinic Affiliation' : 'Add Clinic Affiliation'}
+            {clinic ? 'Edit Schedule' : 'Add Schedule'}
           </DialogTitle>
           <DialogDescription>
             Configure the doctor&apos;s role and schedule at a clinic.
@@ -73,20 +74,6 @@ export function ClinicDialog({ open, onOpenChange, clinic, onSave }: ClinicDialo
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
             />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
-            <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select role" />
-              </SelectTrigger>
-              <SelectContent>
-                {ROLES.map((role) => (
-                  <SelectItem key={role} value={role}>{role}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           
           <div className="space-y-2">
@@ -115,7 +102,7 @@ export function ClinicDialog({ open, onOpenChange, clinic, onSave }: ClinicDialo
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={!isValid}>
-            {clinic ? 'Update Affiliation' : 'Add Affiliation'}
+            {clinic ? 'Update' : 'Submit'}
           </Button>
         </DialogFooter>
       </DialogContent>

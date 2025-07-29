@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useRealDoctors } from "@/hooks/useRealData";
+import { useRealDoctors, useRealClinics } from "@/hooks/useRealData";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import {
   Card,
@@ -53,8 +53,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-
-
 const specialties = [
   "All",
   "Cardiology",
@@ -72,19 +70,31 @@ export default function DoctorsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("All");
   const [selectedStatus, setSelectedStatus] = useState(() => {
-    const statusParam = searchParams.get("status"); // <-- This gets "pending" from "/doctors?status=pending"
+    const statusParam = searchParams.get("status");
     if (statusParam) {
       const normalizedParam =
         statusParam.charAt(0).toUpperCase() +
-        statusParam.slice(1).toLowerCase(); // Converts "pending" to "Pending"
-      if (statuses.includes(normalizedParam)) { // Checks if "Pending" is in your predefined 'statuses' array
-        return normalizedParam; // If yes, 'selectedStatus' is initialized to "Pending"
+        statusParam.slice(1).toLowerCase();
+      if (statuses.includes(normalizedParam)) {
+        return normalizedParam;
       }
     }
     return "All";
   });
+
   // Real Firebase data
   const { doctors, loading, error } = useRealDoctors();
+  const { clinics, loading: clinicsLoading } = useRealClinics();
+
+  // Create clinic name mapping
+  const getClinicName = (clinicId: string) => {
+    if (clinicsLoading) {
+      return 'Loading...';
+    }
+    const clinic = clinics.find(c => c.id === clinicId);
+    return clinic ? clinic.name : `Clinic ${clinicId}`;
+  };
+
   // Update url filter status
   useEffect(() => {
     const currentParams = new URLSearchParams(searchParams.toString());
@@ -164,10 +174,10 @@ export default function DoctorsPage() {
                 Add Specialist
               </Link>
             </Button>
-            <Button variant="outline">
+            {/* <Button variant="outline">
               <Download className="h-4 w-4 mr-2" />
               Export List
-            </Button>
+            </Button> */}
           </div>
         </div>
 
@@ -240,6 +250,7 @@ export default function DoctorsPage() {
                   <TableRow>
                     <TableHead>Doctor</TableHead>
                     <TableHead>Specialty</TableHead>
+                    {/* <TableHead>Professional Fee</TableHead> */}
                     <TableHead>Clinics</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>PRC Expiry</TableHead>
@@ -275,15 +286,20 @@ export default function DoctorsPage() {
                       <TableCell>
                         <Badge variant="outline">{doctor.specialty}</Badge>
                       </TableCell>
+                      {/* <TableCell>
+                        <div className="text-sm">
+                          {formatPhilippinePeso(doctor.professionalFee)}
+                        </div>
+                      </TableCell> */}
                       <TableCell>
                         <div className="space-y-1">
-                          {doctor.clinicAffiliations?.map((clinic: string, index: number) => (
+                          {doctor.clinicAffiliations?.map((clinic: { clinicId: string; isActive: boolean }, index: number) => (
                             <div
                               key={index}
                               className="flex items-center text-sm"
                             >
                               <MapPin className="h-3 w-3 mr-1 text-muted-foreground" />
-                              {clinic}
+                              {getClinicName(clinic.clinicId)}
                             </div>
                           ))}
                         </div>

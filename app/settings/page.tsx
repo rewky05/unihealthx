@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GeneralSettings } from '@/components/settings/general-settings';
 import { UserRoleManagement } from '@/components/settings/user-role-management';
-import { ClinicSpecificSettings } from '@/components/settings/clinic-specific-settings';
 import { MedicalServicesCatalogs } from '@/components/settings/medical-services-catalogs';
 import { DataAudit } from '@/components/settings/data-audit';
 import {
@@ -37,13 +36,7 @@ const settingsCategories = [
     description: 'Manage admin users and permissions',
     allowedRoles: ['superadmin']
   },
-  {
-    id: 'clinics',
-    label: 'Clinic-Specific Settings',
-    icon: Building,
-    description: 'Configure individual clinic operations',
-    allowedRoles: ['superadmin', 'clinic_admin']
-  },
+
   {
     id: 'services',
     label: 'Medical Services & Catalogs',
@@ -85,8 +78,7 @@ export default function SettingsPage() {
         return <GeneralSettings onUnsavedChanges={setHasUnsavedChanges} />;
       case 'users':
         return <UserRoleManagement onUnsavedChanges={setHasUnsavedChanges} />;
-      case 'clinics':
-        return <ClinicSpecificSettings onUnsavedChanges={setHasUnsavedChanges} />;
+
       case 'services':
         return <MedicalServicesCatalogs onUnsavedChanges={setHasUnsavedChanges} />;
       case 'data':

@@ -12,6 +12,7 @@ interface ProfessionalDetailsData {
   medicalLicense: string;
   prcId: string;
   prcExpiry: string;
+  professionalFee?: number; // Professional fee in Philippine pesos
 }
 
 interface ProfessionalDetailsFormProps {
@@ -136,6 +137,25 @@ export function ProfessionalDetailsForm({ data, onUpdate }: ProfessionalDetailsF
                 required
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="professionalFee">
+              Professional Fee (₱) <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="professionalFee"
+              type="number"
+              placeholder="e.g., 2500"
+              value={data.professionalFee || undefined}
+              onChange={(e) => handleInputChange('professionalFee', parseFloat(e.target.value) || 0)}
+              min="0"
+              step="100"
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter the consultation fee in Philippine pesos
+            </p>
           </div>
 
           <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">

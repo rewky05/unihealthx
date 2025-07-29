@@ -6,10 +6,10 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { DoctorSelector } from "@/components/schedules/doctor-selector";
 import { EmptyState } from "@/components/schedules/empty-state";
 import { DoctorInfoBanner } from "@/components/schedules/doctor-info-banner";
-import { ScheduleCard } from "@/components/schedules/schedule-card";
-import { ClinicCard } from "@/components/schedules/clinic-card";
+import { ScheduleCard, type SpecialistSchedule } from "@/components/schedules/schedule-card";
 import { useRealDoctors } from "@/hooks/useRealData";
 import { useScheduleData } from "@/hooks/use-schedule-data";
+import { formatPhilippinePeso } from '@/lib/utils';
 import {
   Card,
   CardContent,
@@ -71,19 +71,57 @@ export default function DoctorDetailPage() {
   // Use the Firebase-integrated schedule data hook
   const {
     schedules,
-    clinics,
     loading: scheduleLoading,
     error: scheduleError,
     handleScheduleAdd,
     handleScheduleEdit,
     handleScheduleDelete,
-    handleClinicAdd,
-    handleClinicEdit,
-    handleClinicDelete,
   } = useScheduleData(doctorId);
 
   // Find the specific doctor from Firebase data
   const doctor = doctors.find(d => d.id === doctorId);
+
+  // Initialize verification status from doctor data
+  useEffect(() => {
+    if (doctor) {
+      setVerificationStatus(doctor.status || 'pending');
+    }
+  }, [doctor]);
+
+  const handleVerificationSubmit = async () => {
+    setIsSaving(true);
+    // Simulate API call
+    setTimeout(() => {
+      setIsSaving(false);
+      // Add new log entry (in real app, this would be handled by the backend)
+    }, 1000);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "verified":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-400";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-400";
+      case "suspended":
+        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-400";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-400";
+    }
+  };
+
+  const getDocumentStatusColor = (status: string) => {
+    switch (status) {
+      case "verified":
+        return "text-green-600";
+      case "pending":
+        return "text-yellow-600";
+      case "rejected":
+        return "text-red-600";
+      default:
+        return "text-gray-600";
+    }
+  };
 
   // Show loading state
   if (loading) {
@@ -128,48 +166,6 @@ export default function DoctorDetailPage() {
       </DashboardLayout>
     );
   }
-
-  // Initialize verification status from doctor data
-  useEffect(() => {
-    if (doctor) {
-      setVerificationStatus(doctor.status || 'pending');
-    }
-  }, [doctor]);
-
-  const handleVerificationSubmit = async () => {
-    setIsSaving(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false);
-      // Add new log entry (in real app, this would be handled by the backend)
-    }, 1000);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "verified":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-400";
-      case "pending":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-400";
-      case "suspended":
-        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-400";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-400";
-    }
-  };
-
-  const getDocumentStatusColor = (status: string) => {
-    switch (status) {
-      case "verified":
-        return "text-green-600";
-      case "pending":
-        return "text-yellow-600";
-      case "rejected":
-        return "text-red-600";
-      default:
-        return "text-gray-600";
-    }
-  };
 
   return (
     <DashboardLayout title={`${doctor.firstName} ${doctor.lastName} - Doctor Details`}>
@@ -308,6 +304,12 @@ export default function DoctorDetailPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
+                      Professional Fee
+                    </p>
+                    <p>{formatPhilippinePeso(doctor.professionalFee)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
                       Last Login
                     </p>
                     <p>{doctor.lastLogin ? new Date(doctor.lastLogin).toLocaleString() : 'Not specified'}</p>
@@ -315,41 +317,6 @@ export default function DoctorDetailPage() {
                 </CardContent>
               </Card>
             </div>
-
-            {/* Clinic Affiliations */}
-            <Card className="card-shadow">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Building className="h-5 w-5 mr-2" />
-                  Clinic Affiliations
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {doctor.clinicAffiliations && doctor.clinicAffiliations.length > 0 ? (
-                    doctor.clinicAffiliations.map((clinicId, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-4 border rounded-lg"
-                      >
-                        <div>
-                          <h4 className="font-medium">Clinic ID: {clinicId}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Affiliated Clinic
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Status</p>
-                          <p className="text-sm">Active</p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-muted-foreground">No clinic affiliations</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Education */}
             <Card className="card-shadow">
@@ -521,19 +488,12 @@ export default function DoctorDetailPage() {
                   <p className="text-red-600 text-sm">{scheduleError}</p>
                 </div>
               )}
-              <div className="grid gap-6 lg:grid-cols-2">
+              <div className="space-y-6">
                 <ScheduleCard
                   schedules={schedules}
                   onScheduleAdd={handleScheduleAdd}
                   onScheduleEdit={handleScheduleEdit}
                   onScheduleDelete={handleScheduleDelete}
-                />
-
-                <ClinicCard
-                  clinics={clinics}
-                  onClinicAdd={handleClinicAdd}
-                  onClinicEdit={handleClinicEdit}
-                  onClinicDelete={handleClinicDelete}
                 />
               </div>
             </Card>

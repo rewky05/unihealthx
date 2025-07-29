@@ -13,13 +13,13 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Building, Plus, Trash2, Calendar, Clock, MapPin, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ClinicAffiliation, ClinicScheduleBlock } from '@/app/doctors/add/page';
+import type { SpecialistSchedule } from '@/app/doctors/add/page';
 
 interface ClinicScheduleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  affiliation: ClinicAffiliation | null;
-  onSave: (affiliation: Omit<ClinicAffiliation, 'id'>) => void;
+  schedule: SpecialistSchedule | null;
+  onSave: (schedule: Omit<SpecialistSchedule, 'id'>) => void;
 }
 
 // Mock clinic data based on the provided schema
@@ -54,7 +54,6 @@ const EXISTING_CLINICS = [
   }
 ];
 
-const ROLES = ['Senior Consultant', 'Visiting Consultant', 'Consultant', 'Associate', 'Resident'];
 const CLINIC_TYPES = ['hospital', 'multi_specialty_clinic', 'community_clinic', 'private_clinic'];
 const DAYS_OF_WEEK = [
   { value: 1, label: 'Monday' },
@@ -66,76 +65,123 @@ const DAYS_OF_WEEK = [
   { value: 0, label: 'Sunday' }
 ];
 
-export function ClinicScheduleDialog({ open, onOpenChange, affiliation, onSave }: ClinicScheduleDialogProps) {
+export function ClinicScheduleDialog({ open, onOpenChange, schedule, onSave }: ClinicScheduleDialogProps) {
   const [clinicSearchOpen, setClinicSearchOpen] = useState(false);
   const [clinicSearchValue, setClinicSearchValue] = useState('');
   const [selectedClinic, setSelectedClinic] = useState<typeof EXISTING_CLINICS[0] | null>(null);
   const [isNewClinic, setIsNewClinic] = useState(false);
   
   const [formData, setFormData] = useState({
-    role: '',
-    since: '',
-    newClinicDetails: {
+    clinicId: '',
+    roomOrUnit: '',
+    dayOfWeek: [] as number[],
+    startTime: '',
+    endTime: '',
+    slotDurationMinutes: 30,
+    validFrom: '',
+    isActive: true,
+    newClinicDetails: { // Added for new clinic details
       name: '',
       addressLine: '',
       contactNumber: '',
       type: ''
     }
   });
-  
-  const [schedules, setSchedules] = useState<ClinicScheduleBlock[]>([]);
-  const [currentSchedule, setCurrentSchedule] = useState<Partial<ClinicScheduleBlock>>({
-    roomOrUnit: '',
-    dayOfWeek: [],
-    startTime: '',
-    endTime: '',
-    slotDurationMinutes: 30,
-    validFrom: ''
-  });
+
+  // Helper function to convert 12-hour format to 24-hour format
+  const convertTo24Hour = (time12h: string): string => {
+    const [time, modifier] = time12h.split(' ');
+    let [hours, minutes] = time.split(':');
+    
+    if (hours === '12') {
+      hours = modifier === 'PM' ? '12' : '00';
+    } else if (modifier === 'PM') {
+      hours = (parseInt(hours) + 12).toString();
+    } else {
+      hours = hours.padStart(2, '0');
+    }
+    
+    return `${hours}:${minutes}`;
+  };
+
+  // Helper function to convert 24-hour format to 12-hour format
+  const convertTo12Hour = (time24h: string): string => {
+    const [hours, minutes] = time24h.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${displayHour.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+  };
+
+  // Helper function to format date consistently
+  const formatDate = (dateString: string) => {
+    // Parse the date as local date to avoid timezone conversion
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
+    const monthStr = (date.getMonth() + 1).toString().padStart(2, '0');
+    const dayStr = date.getDate().toString().padStart(2, '0');
+    const yearStr = date.getFullYear();
+    return `${monthStr}/${dayStr}/${yearStr}`;
+  };
 
   useEffect(() => {
-    if (affiliation) {
-      setSelectedClinic(EXISTING_CLINICS.find(c => c.id === affiliation.clinicId) || null);
-      setIsNewClinic(!affiliation.clinicId);
+    if (schedule) {
+      // Extract start and end times from slotTemplate
+      const slotKeys = Object.keys(schedule.slotTemplate || {});
+      const sortedKeys = slotKeys.sort();
+      const startTime12h = sortedKeys[0] || '';
+      const endTime12h = sortedKeys[sortedKeys.length - 1] || '';
+      
+      // Convert to 24-hour format for HTML time input
+      const startTime = startTime12h ? convertTo24Hour(startTime12h) : '';
+      const endTime = endTime12h ? convertTo24Hour(endTime12h) : '';
+      
+      // Pre-fill form with existing schedule data
       setFormData({
-        role: affiliation.role,
-        since: affiliation.since,
-        newClinicDetails: affiliation.newClinicDetails || {
-          name: affiliation.name,
+        clinicId: schedule.practiceLocation?.clinicId || '',
+        roomOrUnit: schedule.practiceLocation?.roomOrUnit || '',
+        dayOfWeek: schedule.recurrence?.dayOfWeek || [],
+        startTime: startTime,
+        endTime: endTime,
+        slotDurationMinutes: Object.values(schedule.slotTemplate || {})[0]?.durationMinutes || 30,
+        validFrom: schedule.validFrom || new Date().toISOString().split('T')[0],
+        isActive: schedule.isActive,
+        newClinicDetails: { // Pre-fill new clinic details if they exist
+          name: '',
           addressLine: '',
           contactNumber: '',
           type: ''
         }
       });
-      setSchedules(affiliation.schedules || []);
-      setClinicSearchValue(affiliation.name);
+      
+      // Set selected clinic
+      const clinic = EXISTING_CLINICS.find(c => c.id === schedule.practiceLocation?.clinicId);
+      setSelectedClinic(clinic || null);
+      setClinicSearchValue(clinic?.name || '');
     } else {
       resetForm();
     }
-  }, [affiliation, open]);
+  }, [schedule, open]);
 
   const resetForm = () => {
     setSelectedClinic(null);
     setIsNewClinic(false);
     setClinicSearchValue('');
     setFormData({
-      role: '',
-      since: '',
+      clinicId: '',
+      roomOrUnit: '',
+      dayOfWeek: [],
+      startTime: '',
+      endTime: '',
+      slotDurationMinutes: 30,
+      validFrom: new Date().toISOString().split('T')[0],
+      isActive: true,
       newClinicDetails: {
         name: '',
         addressLine: '',
         contactNumber: '',
         type: ''
       }
-    });
-    setSchedules([]);
-    setCurrentSchedule({
-      roomOrUnit: '',
-      dayOfWeek: [],
-      startTime: '',
-      endTime: '',
-      slotDurationMinutes: 30,
-      validFrom: ''
     });
   };
 
@@ -154,49 +200,65 @@ export function ClinicScheduleDialog({ open, onOpenChange, affiliation, onSave }
     setClinicSearchValue(name);
     setFormData(prev => ({
       ...prev,
+      clinicId: '', // New clinic means no existing clinic ID
+      roomOrUnit: '',
+      dayOfWeek: [],
+      startTime: '',
+      endTime: '',
+      slotDurationMinutes: 30,
+      validFrom: new Date().toISOString().split('T')[0],
+      isActive: true,
       newClinicDetails: {
-        ...prev.newClinicDetails,
-        name: name
+        name: name,
+        addressLine: '',
+        contactNumber: '',
+        type: ''
       }
     }));
     setClinicSearchOpen(false);
   };
 
   const addScheduleBlock = () => {
-    if (currentSchedule.roomOrUnit && 
-        currentSchedule.dayOfWeek && currentSchedule.dayOfWeek.length > 0 &&
-        currentSchedule.startTime && 
-        currentSchedule.endTime && 
-        currentSchedule.validFrom) {
+    if (formData.roomOrUnit && 
+        formData.dayOfWeek && formData.dayOfWeek.length > 0 &&
+        formData.startTime && 
+        formData.endTime && 
+        formData.validFrom) {
       
-      const newSchedule: ClinicScheduleBlock = {
+      const newSchedule: SpecialistSchedule = {
         id: Date.now().toString(),
-        roomOrUnit: currentSchedule.roomOrUnit,
-        dayOfWeek: currentSchedule.dayOfWeek,
-        startTime: currentSchedule.startTime,
-        endTime: currentSchedule.endTime,
-        slotDurationMinutes: currentSchedule.slotDurationMinutes || 30,
-        validFrom: currentSchedule.validFrom
+        specialistId: schedule?.specialistId || '',
+        practiceLocation: {
+          clinicId: selectedClinic?.id || '',
+          roomOrUnit: formData.roomOrUnit
+        },
+        recurrence: {
+          dayOfWeek: formData.dayOfWeek,
+          type: 'weekly'
+        },
+        scheduleType: 'Weekly',
+        slotTemplate: {
+          [formData.startTime]: {
+            defaultStatus: 'available',
+            durationMinutes: formData.slotDurationMinutes
+          }
+        },
+        validFrom: formData.validFrom,
+        isActive: formData.isActive
       };
       
-      setSchedules(prev => [...prev, newSchedule]);
-      setCurrentSchedule({
-        roomOrUnit: '',
-        dayOfWeek: [],
-        startTime: '',
-        endTime: '',
-        slotDurationMinutes: 30,
-        validFrom: ''
-      });
+      onSave(newSchedule);
+      onOpenChange(false);
     }
   };
 
   const removeScheduleBlock = (scheduleId: string) => {
-    setSchedules(prev => prev.filter(s => s.id !== scheduleId));
+    // This function is no longer needed as we are working directly with SpecialistSchedule
+    // The dialog will close after saving, so no need to remove blocks here.
   };
 
   const handleDayToggle = (dayValue: number, checked: boolean) => {
-    setCurrentSchedule(prev => ({
+    setFormData(prev => ({
       ...prev,
       dayOfWeek: checked 
         ? [...(prev.dayOfWeek || []), dayValue]
@@ -205,6 +267,9 @@ export function ClinicScheduleDialog({ open, onOpenChange, affiliation, onSave }
   };
 
   const getDayNames = (dayNumbers: number[]) => {
+    if (!dayNumbers || !Array.isArray(dayNumbers)) {
+      return 'No days specified';
+    }
     return dayNumbers
       .sort()
       .map(num => DAYS_OF_WEEK.find(d => d.value === num)?.label)
@@ -213,47 +278,67 @@ export function ClinicScheduleDialog({ open, onOpenChange, affiliation, onSave }
   };
 
   const handleSave = () => {
-    const clinicName = selectedClinic?.name || formData.newClinicDetails.name;
-    
-    if (!clinicName || !formData.role || !formData.since || schedules.length === 0) {
+    if (!formData.roomOrUnit || !formData.dayOfWeek.length || !formData.startTime || !formData.endTime || !formData.validFrom) {
       return;
     }
 
-    const affiliationData: Omit<ClinicAffiliation, 'id'> = {
-      clinicId: selectedClinic?.id,
-      name: clinicName,
-      role: formData.role,
-      since: formData.since,
-      schedules: schedules,
-      ...(isNewClinic && {
-        newClinicDetails: formData.newClinicDetails
-      })
+    // Generate slot template from start/end times in 12-hour format
+    const slotTemplate: { [key: string]: { defaultStatus: string; durationMinutes: number } } = {};
+    const startHour = parseInt(formData.startTime.split(':')[0]);
+    const startMinute = parseInt(formData.startTime.split(':')[1]);
+    const endHour = parseInt(formData.endTime.split(':')[0]);
+    const endMinute = parseInt(formData.endTime.split(':')[1]);
+    
+    // Convert start and end times to minutes for easier calculation
+    const startMinutes = startHour * 60 + startMinute;
+    const endMinutes = endHour * 60 + endMinute;
+    
+    // Generate time slots based on duration
+    for (let time = startMinutes; time < endMinutes; time += formData.slotDurationMinutes) {
+      const hour = Math.floor(time / 60);
+      const minute = time % 60;
+      const time24h = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      const time12h = convertTo12Hour(time24h);
+      
+      slotTemplate[time12h] = {
+        defaultStatus: 'available',
+        durationMinutes: formData.slotDurationMinutes
+      };
+    }
+
+    const scheduleData: Omit<SpecialistSchedule, 'id'> = {
+      specialistId: schedule?.specialistId || '',
+      isActive: formData.isActive,
+      practiceLocation: {
+        clinicId: selectedClinic?.id || formData.clinicId,
+        roomOrUnit: formData.roomOrUnit
+      },
+      recurrence: {
+        dayOfWeek: formData.dayOfWeek,
+        type: 'weekly'
+      },
+      scheduleType: 'Weekly',
+      slotTemplate: slotTemplate,
+      validFrom: formData.validFrom
     };
 
-    onSave(affiliationData);
+    onSave(scheduleData);
     onOpenChange(false);
   };
 
   const isFormValid = () => {
-    const hasClinic = selectedClinic || (isNewClinic && formData.newClinicDetails.name);
-    const hasBasicInfo = formData.role && formData.since;
-    const hasSchedules = schedules.length > 0;
-    const hasNewClinicDetails = !isNewClinic || (
-      formData.newClinicDetails.name &&
-      formData.newClinicDetails.addressLine && 
-      formData.newClinicDetails.contactNumber && 
-      formData.newClinicDetails.type
-    );
+    const hasClinic = selectedClinic || (isNewClinic && clinicSearchValue);
+    const hasBasicInfo = formData.roomOrUnit && formData.dayOfWeek.length > 0 && formData.startTime && formData.endTime && formData.validFrom;
     
-    return hasClinic && hasBasicInfo && hasSchedules && hasNewClinicDetails;
+    return hasClinic && hasBasicInfo;
   };
 
   const isScheduleValid = () => {
-    return currentSchedule.roomOrUnit && 
-           currentSchedule.dayOfWeek && currentSchedule.dayOfWeek.length > 0 &&
-           currentSchedule.startTime && 
-           currentSchedule.endTime && 
-           currentSchedule.validFrom;
+    return formData.roomOrUnit && 
+           formData.dayOfWeek && formData.dayOfWeek.length > 0 &&
+           formData.startTime && 
+           formData.endTime && 
+           formData.validFrom;
   };
 
   return (
@@ -261,10 +346,13 @@ export function ClinicScheduleDialog({ open, onOpenChange, affiliation, onSave }
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {affiliation ? 'Edit Clinic Affiliation' : 'Add Clinic Affiliation'}
+            {schedule ? 'Edit Schedule' : 'Add Schedule'}
           </DialogTitle>
           <DialogDescription>
-            Select or add a clinic and configure the doctor&apos;s schedule for that location.
+            {schedule 
+              ? 'Update the schedule details for this clinic.'
+              : 'Select or add a clinic and configure the doctor\'s schedule for that location.'
+            }
           </DialogDescription>
         </DialogHeader>
         
@@ -341,109 +429,49 @@ export function ClinicScheduleDialog({ open, onOpenChange, affiliation, onSave }
                 </Popover>
               </div>
 
-              {/* New Clinic Details */}
+              {/* New Clinic Details - Only show when adding new clinic */}
               {isNewClinic && (
-                <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-4 p-4 border rounded-lg">
                   <h4 className="font-medium">New Clinic Details</h4>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>Name</Label>
+                      <Label>Clinic Name</Label>
                       <Input
-                        placeholder="Clinic name"
+                        placeholder="Enter clinic name"
                         value={formData.newClinicDetails.name}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          newClinicDetails: {
-                            ...prev.newClinicDetails,
-                            name: e.target.value
-                          }
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          newClinicDetails: { ...prev.newClinicDetails, name: e.target.value }
                         }))}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Address</Label>
-                      <Input
-                        placeholder="Complete address"
-                        value={formData.newClinicDetails.addressLine}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          newClinicDetails: {
-                            ...prev.newClinicDetails,
-                            addressLine: e.target.value
-                          }
+                      <Label>Clinic Type</Label>
+                      <Select 
+                        value={formData.newClinicDetails.type} 
+                        onValueChange={(value) => setFormData(prev => ({ 
+                          ...prev, 
+                          newClinicDetails: { ...prev.newClinicDetails, type: value }
                         }))}
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select clinic type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {['Hospital', 'Clinic', 'Medical Center', 'Specialty Center'].map((type) => (
+                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Contact Number</Label>
-                      <Input
-                        placeholder="+63 XXX XXX XXXX"
-                        value={formData.newClinicDetails.contactNumber}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          newClinicDetails: {
-                            ...prev.newClinicDetails,
-                            contactNumber: e.target.value
-                          }
-                        }))}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Clinic Type</Label>
-                    <Select 
-                      value={formData.newClinicDetails.type} 
-                      onValueChange={(value) => setFormData(prev => ({
-                        ...prev,
-                        newClinicDetails: {
-                          ...prev.newClinicDetails,
-                          type: value
-                        }
-                      }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select clinic type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CLINIC_TYPES.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                 </div>
               )}
 
-              {/* Role and Since */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Role</Label>
-                  <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLES.map((role) => (
-                        <SelectItem key={role} value={role}>{role}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Since</Label>
-                  <Input
-                    type="date"
-                    value={formData.since}
-                    onChange={(e) => setFormData(prev => ({ ...prev, since: e.target.value }))}
-                  />
-                </div>
-              </div>
             </CardContent>
           </Card>
 
-          {/* Schedule Management */}
+          {/* Schedule Configuration */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
@@ -451,41 +479,44 @@ export function ClinicScheduleDialog({ open, onOpenChange, affiliation, onSave }
                 Schedule Configuration
               </CardTitle>
               <CardDescription>
-                Add schedule blocks for this clinic affiliation
+                {schedule 
+                  ? 'Update the schedule details for this clinic'
+                  : 'Add schedule blocks for this clinic affiliation'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Add Schedule Form */}
-              <div className="space-y-4 p-4 border rounded-lg">
-                <h4 className="font-medium">Add Schedule Block</h4>
+              {!schedule && (
+                <div className="space-y-4 p-4 border rounded-lg">
+                  <h4 className="font-medium">Add Schedule Block</h4>
                 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Room/Unit</Label>
                     <Input
                       placeholder="e.g., Cardiology Clinic, Rm 501"
-                      value={currentSchedule.roomOrUnit || ''}
-                      onChange={(e) => setCurrentSchedule(prev => ({ ...prev, roomOrUnit: e.target.value }))}
+                      value={formData.roomOrUnit || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, roomOrUnit: e.target.value }))}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Valid From</Label>
                     <Input
                       type="date"
-                      value={currentSchedule.validFrom || ''}
-                      onChange={(e) => setCurrentSchedule(prev => ({ ...prev, validFrom: e.target.value }))}
+                      value={formData.validFrom || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, validFrom: e.target.value }))}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label>Days of Week</Label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-4 gap-3">
                     {DAYS_OF_WEEK.map((day) => (
                       <div key={day.value} className="flex items-center space-x-2">
                         <Checkbox
                           id={`day-${day.value}`}
-                          checked={(currentSchedule.dayOfWeek || []).includes(day.value)}
+                          checked={(formData.dayOfWeek || []).includes(day.value)}
                           onCheckedChange={(checked) => handleDayToggle(day.value, checked as boolean)}
                         />
                         <Label htmlFor={`day-${day.value}`} className="text-sm">
@@ -501,23 +532,23 @@ export function ClinicScheduleDialog({ open, onOpenChange, affiliation, onSave }
                     <Label>Start Time</Label>
                     <Input
                       type="time"
-                      value={currentSchedule.startTime || ''}
-                      onChange={(e) => setCurrentSchedule(prev => ({ ...prev, startTime: e.target.value }))}
+                      value={formData.startTime || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>End Time</Label>
                     <Input
                       type="time"
-                      value={currentSchedule.endTime || ''}
-                      onChange={(e) => setCurrentSchedule(prev => ({ ...prev, endTime: e.target.value }))}
+                      value={formData.endTime || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Slot Duration (minutes)</Label>
                     <Select 
-                      value={currentSchedule.slotDurationMinutes?.toString() || '30'} 
-                      onValueChange={(value) => setCurrentSchedule(prev => ({ ...prev, slotDurationMinutes: parseInt(value) }))}
+                      value={formData.slotDurationMinutes?.toString() || '30'} 
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, slotDurationMinutes: parseInt(value) }))}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -541,46 +572,86 @@ export function ClinicScheduleDialog({ open, onOpenChange, affiliation, onSave }
                   Add Schedule Block
                 </Button>
               </div>
+              )}
 
-              {/* Existing Schedules */}
-              {schedules.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="font-medium">Schedule Blocks ({schedules.length})</h4>
-                  {schedules.map((schedule) => (
-                    <div key={schedule.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <MapPin className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{schedule.roomOrUnit}</span>
-                        </div>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>{getDayNames(schedule.dayOfWeek)}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Clock className="h-3 w-3" />
-                            <span>{schedule.startTime} - {schedule.endTime}</span>
-                          </div>
-                          <Badge variant="secondary" className="text-xs">
-                            {schedule.slotDurationMinutes}min slots
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Valid from: {new Date(schedule.validFrom).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeScheduleBlock(schedule.id!)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+              {/* Edit Schedule Form - Only show when editing existing schedule */}
+              {schedule && (
+                <div className="space-y-4 p-4 border rounded-lg">
+                  <h4 className="font-medium">Edit Schedule Details</h4>
+                
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Room/Unit</Label>
+                    <Input
+                      placeholder="e.g., Cardiology Clinic, Rm 501"
+                      value={formData.roomOrUnit || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, roomOrUnit: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Valid From</Label>
+                    <Input
+                      type="date"
+                      value={formData.validFrom || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, validFrom: e.target.value }))}
+                    />
+                  </div>
                 </div>
+
+                <div className="space-y-2">
+                  <Label>Days of Week</Label>
+                  <div className="grid grid-cols-4 gap-3">
+                    {DAYS_OF_WEEK.map((day) => (
+                      <div key={day.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`day-${day.value}`}
+                          checked={(formData.dayOfWeek || []).includes(day.value)}
+                          onCheckedChange={(checked) => handleDayToggle(day.value, checked as boolean)}
+                        />
+                        <Label htmlFor={`day-${day.value}`} className="text-sm">
+                          {day.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label>Start Time</Label>
+                    <Input
+                      type="time"
+                      value={formData.startTime || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>End Time</Label>
+                    <Input
+                      type="time"
+                      value={formData.endTime || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Slot Duration (minutes)</Label>
+                    <Select 
+                      value={formData.slotDurationMinutes?.toString() || '30'} 
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, slotDurationMinutes: parseInt(value) }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="15">15 minutes</SelectItem>
+                        <SelectItem value="30">30 minutes</SelectItem>
+                        <SelectItem value="45">45 minutes</SelectItem>
+                        <SelectItem value="60">60 minutes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
               )}
             </CardContent>
           </Card>
@@ -591,7 +662,7 @@ export function ClinicScheduleDialog({ open, onOpenChange, affiliation, onSave }
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={!isFormValid()}>
-            {affiliation ? 'Update Affiliation' : 'Add Affiliation'}
+            {schedule ? 'Update Schedule' : 'Add Schedule'}
           </Button>
         </DialogFooter>
       </DialogContent>

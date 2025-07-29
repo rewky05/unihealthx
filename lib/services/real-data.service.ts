@@ -8,7 +8,11 @@ import type {
   Appointment, 
   Patient, 
   Referral, 
-  DashboardStats 
+  DashboardStats,
+  MedicalSpecialty,
+  LabTest,
+  ImagingTest,
+  ConsultationType
 } from '@/lib/types/database';
 
 export class RealDataService {
@@ -385,6 +389,83 @@ export class RealDataService {
     } catch (error) {
       console.error('Error fetching recent activity:', error);
       return [];
+    }
+  }
+
+  // Medical Services Catalogs
+  /**
+   * Get medical specialties
+   */
+  async getMedicalSpecialties(): Promise<MedicalSpecialty[]> {
+    try {
+      const snapshot = await get(ref(db, 'medicalServices/specialties'));
+      if (!snapshot.exists()) return [];
+      
+      const specialties = snapshot.val();
+      return Object.keys(specialties).map(id => ({
+        id,
+        ...specialties[id]
+      }));
+    } catch (error) {
+      console.error('Error fetching medical specialties:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get laboratory tests
+   */
+  async getLabTests(): Promise<LabTest[]> {
+    try {
+      const snapshot = await get(ref(db, 'medicalServices/laboratoryTests'));
+      if (!snapshot.exists()) return [];
+      
+      const tests = snapshot.val();
+      return Object.keys(tests).map(id => ({
+        id,
+        ...tests[id]
+      }));
+    } catch (error) {
+      console.error('Error fetching lab tests:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get imaging tests
+   */
+  async getImagingTests(): Promise<ImagingTest[]> {
+    try {
+      const snapshot = await get(ref(db, 'medicalServices/imagingTests'));
+      if (!snapshot.exists()) return [];
+      
+      const tests = snapshot.val();
+      return Object.keys(tests).map(id => ({
+        id,
+        ...tests[id]
+      }));
+    } catch (error) {
+      console.error('Error fetching imaging tests:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get consultation types
+   */
+  async getConsultationTypes(): Promise<ConsultationType[]> {
+    try {
+      const snapshot = await get(ref(db, 'medicalServices/consultationTypes'));
+      if (!snapshot.exists()) return [];
+      
+      const types = snapshot.val();
+      return Object.keys(types).map(id => ({
+        id,
+        ...types[id]
+      }));
+    } catch (error) {
+      console.error('Error fetching consultation types:', error);
+      throw error;
     }
   }
 }

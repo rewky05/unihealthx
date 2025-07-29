@@ -74,7 +74,6 @@ export const doctorFiltersSchema = z.object({
 export const doctorClinicAffiliationSchema = z.object({
   doctorId: z.string().min(1, "Doctor ID is required"),
   clinicId: z.string().min(1, "Clinic ID is required"),
-  role: z.string().min(2, "Role must be at least 2 characters"),
   startDate: z.string().refine((date) => {
     return new Date(date) <= new Date();
   }, "Start date cannot be in the future"),

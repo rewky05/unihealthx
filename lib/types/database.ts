@@ -9,40 +9,35 @@ export interface BaseEntity {
 // Doctors from your database
 export interface Doctor {
   id?: string;
-  userId: string;
   firstName: string;
   lastName: string;
-  fullName?: string;
-  email?: string;
-  contactNumber?: string;
+  email: string;
+  contactNumber: string;
   specialty: string;
-  isGeneralist: boolean;
   isSpecialist: boolean;
-  clinicAffiliations: string[];
-  
-  // Extended fields for complete doctor records
+  professionalFee?: number; // Professional fee in Philippine pesos
+  status: 'verified' | 'pending' | 'suspended';
+  profileImageUrl?: string;
   address?: string;
   dateOfBirth?: string;
   gender?: string;
   civilStatus?: string;
-  education?: Array<{
+  prcId?: string;
+  prcExpiryDate?: string;
+  medicalLicenseNumber?: string;
+  education?: {
     degree: string;
     university?: string;
     institution?: string;
     year: string;
-  }>;
+  }[];
   boardCertifications?: string[];
   fellowships?: string[];
   accreditations?: string[];
-  medicalLicenseNumber?: string;
-  prcId?: string;
-  prcExpiryDate?: string;
-  yearsOfExperience?: number;
-  profileImageUrl?: string;
-  status?: 'verified' | 'pending' | 'suspended' | 'rejected';
-  verificationDate?: string;
-  verificationNotes?: string;
-  verifiedByAdminId?: string;
+  clinicAffiliations?: {
+    clinicId: string;
+    isActive: boolean;
+  }[];
   lastLogin?: string;
   lastUpdated?: string;
   createdAt?: string;
@@ -255,4 +250,29 @@ export interface AppointmentFilters {
     start: string;
     end: string;
   };
+}
+
+// Medical Services Catalogs
+export interface MedicalSpecialty {
+  id?: string;
+  name: string;
+  description?: string;
+}
+
+export interface LabTest {
+  id?: string;
+  name: string;
+  description: string;
+}
+
+export interface ImagingTest {
+  id?: string;
+  name: string;
+  description: string;
+}
+
+export interface ConsultationType {
+  id?: string;
+  name: string;
+  description: string;
 }

@@ -33,9 +33,10 @@ export interface DoctorFormData {
   medicalLicense: string;
   prcId: string;
   prcExpiry: string;
+  professionalFee?: number; // Professional fee in Philippine pesos
 
-  // Affiliations & Education
-  clinics: ClinicAffiliation[];
+  // Schedules & Education
+  schedules: SpecialistSchedule[];
   education: Array<{
     degree: string;
     school: string;
@@ -56,28 +57,27 @@ export interface DoctorFormData {
   }>;
 }
 
-export interface ClinicAffiliation {
+export interface SpecialistSchedule {
   id?: string;
-  clinicId?: string; // For existing clinics
-  name: string;
-  role: string;
-  since: string;
-  schedules: ClinicScheduleBlock[];
-  newClinicDetails?: {
-    name: string;
-    addressLine: string;
-    contactNumber: string;
+  specialistId: string;
+  createdAt?: string;
+  isActive: boolean;
+  lastUpdated?: string;
+  practiceLocation: {
+    clinicId: string;
+    roomOrUnit: string;
+  };
+  recurrence: {
+    dayOfWeek: number[];
     type: string;
   };
-}
-
-export interface ClinicScheduleBlock {
-  id?: string;
-  roomOrUnit: string;
-  dayOfWeek: number[]; // 0=Sunday, 1=Monday, etc.
-  startTime: string;
-  endTime: string;
-  slotDurationMinutes: number;
+  scheduleType: string;
+  slotTemplate: {
+    [timeSlot: string]: {
+      defaultStatus: string;
+      durationMinutes: number;
+    };
+  };
   validFrom: string;
 }
 
@@ -106,9 +106,10 @@ export default function AddDoctorPage() {
     medicalLicense: '',
     prcId: '',
     prcExpiry: '',
+    professionalFee: undefined,
 
-    // Affiliations & Education
-    clinics: [],
+    // Schedules & Education
+    schedules: [],
     education: [],
     certifications: [],
 
@@ -149,6 +150,8 @@ export default function AddDoctorPage() {
         status: 'pending',
         createdAt: new Date().toISOString(),
         lastUpdated: new Date().toISOString(),
+        // Add schedules data
+        schedules: formData.schedules,
         // Add other fields as needed
       };
 
@@ -218,7 +221,7 @@ export default function AddDoctorPage() {
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="personal">Personal Info</TabsTrigger>
                 <TabsTrigger value="professional">Professional</TabsTrigger>
-                <TabsTrigger value="affiliations">Affiliations</TabsTrigger>
+                <TabsTrigger value="affiliations">Schedules</TabsTrigger>
                 <TabsTrigger value="documents">Documents</TabsTrigger>
               </TabsList>
 
@@ -261,7 +264,7 @@ export default function AddDoctorPage() {
               <TabsContent value="affiliations" className="space-y-6">
                 <AffiliationsEducationForm
                   data={{
-                    clinics: formData.clinics,
+                    schedules: formData.schedules,
                     education: formData.education,
                     certifications: formData.certifications
                   }}

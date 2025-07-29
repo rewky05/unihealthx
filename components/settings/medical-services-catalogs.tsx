@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,54 +12,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FileText, Plus, Edit, Trash2, Stethoscope, TestTube, Scan, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { realDataService } from '@/lib/services/real-data.service';
+import type { MedicalSpecialty, LabTest, ImagingTest, ConsultationType } from '@/lib/types/database';
 
 interface MedicalServicesCatalogsProps {
   onUnsavedChanges: (hasChanges: boolean) => void;
 }
 
-interface ServiceItem {
-  id: string;
-  name: string;
-  description: string;
-  category?: string;
-  isActive: boolean;
-}
+type ServiceItem = MedicalSpecialty | LabTest | ImagingTest | ConsultationType;
 
-const mockSpecialties: ServiceItem[] = [
-  { id: '1', name: 'Cardiology', description: 'Heart and cardiovascular system', isActive: true },
-  { id: '2', name: 'Dermatology', description: 'Skin, hair, and nail conditions', isActive: true },
-  { id: '3', name: 'Pediatrics', description: 'Medical care for infants, children, and adolescents', isActive: true },
-  { id: '4', name: 'Orthopedics', description: 'Musculoskeletal system disorders', isActive: true },
-  { id: '5', name: 'Neurology', description: 'Nervous system disorders', isActive: false }
-];
 
-const mockLabTests: ServiceItem[] = [
-  { id: '1', name: 'Complete Blood Count (CBC)', description: 'Comprehensive blood analysis', category: 'Hematology', isActive: true },
-  { id: '2', name: 'Lipid Profile', description: 'Cholesterol and triglyceride levels', category: 'Chemistry', isActive: true },
-  { id: '3', name: 'Thyroid Function Test', description: 'TSH, T3, T4 levels', category: 'Endocrinology', isActive: true },
-  { id: '4', name: 'Liver Function Test', description: 'Liver enzyme levels', category: 'Chemistry', isActive: true }
-];
-
-const mockImagingTests: ServiceItem[] = [
-  { id: '1', name: 'X-Ray', description: 'Basic radiographic imaging', category: 'Radiology', isActive: true },
-  { id: '2', name: 'CT Scan', description: 'Computed tomography imaging', category: 'Radiology', isActive: true },
-  { id: '3', name: 'MRI', description: 'Magnetic resonance imaging', category: 'Radiology', isActive: true },
-  { id: '4', name: 'Ultrasound', description: 'Ultrasonic imaging', category: 'Radiology', isActive: true }
-];
-
-const mockConsultationTypes: ServiceItem[] = [
-  { id: '1', name: 'Initial Consultation', description: 'First-time patient visit', isActive: true },
-  { id: '2', name: 'Follow-up Consultation', description: 'Subsequent patient visit', isActive: true },
-  { id: '3', name: 'Emergency Consultation', description: 'Urgent medical consultation', isActive: true },
-  { id: '4', name: 'Telemedicine Consultation', description: 'Remote video consultation', isActive: true }
-];
 
 export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCatalogsProps) {
   const { toast } = useToast();
-  const [specialties, setSpecialties] = useState<ServiceItem[]>(mockSpecialties);
-  const [labTests, setLabTests] = useState<ServiceItem[]>(mockLabTests);
-  const [imagingTests, setImagingTests] = useState<ServiceItem[]>(mockImagingTests);
-  const [consultationTypes, setConsultationTypes] = useState<ServiceItem[]>(mockConsultationTypes);
+  const [specialties, setSpecialties] = useState<MedicalSpecialty[]>([]);
+  const [labTests, setLabTests] = useState<LabTest[]>([]);
+  const [imagingTests, setImagingTests] = useState<ImagingTest[]>([]);
+  const [consultationTypes, setConsultationTypes] = useState<ConsultationType[]>([]);
+  const [loading, setLoading] = useState(true);
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ServiceItem | null>(null);
@@ -69,6 +39,37 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
     description: '',
     category: ''
   });
+
+  // Load data from Firebase
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [specialtiesData, labTestsData, imagingTestsData, consultationTypesData] = await Promise.all([
+          realDataService.getMedicalSpecialties(),
+          realDataService.getLabTests(),
+          realDataService.getImagingTests(),
+          realDataService.getConsultationTypes()
+        ]);
+        
+        setSpecialties(specialtiesData);
+        setLabTests(labTestsData);
+        setImagingTests(imagingTestsData);
+        setConsultationTypes(consultationTypesData);
+      } catch (error) {
+        console.error('Error loading medical services data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load medical services data.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [toast]);
 
   const getCurrentData = () => {
     switch (currentTab) {
@@ -80,36 +81,40 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
     }
   };
 
-  const setCurrentData = (data: ServiceItem[]) => {
+  const setCurrentData = (data: any[]) => {
     switch (currentTab) {
-      case 'specialties': setSpecialties(data); break;
-      case 'lab-tests': setLabTests(data); break;
-      case 'imaging-tests': setImagingTests(data); break;
-      case 'consultation-types': setConsultationTypes(data); break;
+      case 'specialties': setSpecialties(data as MedicalSpecialty[]); break;
+      case 'lab-tests': setLabTests(data as LabTest[]); break;
+      case 'imaging-tests': setImagingTests(data as ImagingTest[]); break;
+      case 'consultation-types': setConsultationTypes(data as ConsultationType[]); break;
     }
   };
 
   const getTabConfig = () => {
     const configs = {
-      'specialties': {
-        title: 'Medical Specialties',
-        icon: Stethoscope,
-        hasCategory: false
-      },
+             'specialties': {
+         title: 'Medical Specialties',
+         icon: Stethoscope,
+         hasCategory: false,
+         hasDescription: true
+       },
       'lab-tests': {
         title: 'Laboratory Tests',
         icon: TestTube,
-        hasCategory: true
+        hasCategory: false,
+        hasDescription: true
       },
       'imaging-tests': {
         title: 'Imaging Tests',
         icon: Scan,
-        hasCategory: true
+        hasCategory: false,
+        hasDescription: true
       },
       'consultation-types': {
         title: 'Consultation Types',
         icon: MessageSquare,
-        hasCategory: false
+        hasCategory: false,
+        hasDescription: true
       }
     };
     return configs[currentTab as keyof typeof configs];
@@ -125,8 +130,8 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
     setEditingItem(item);
     setFormData({
       name: item.name,
-      description: item.description,
-      category: item.category || ''
+      description: 'description' in item ? (item as any).description || '' : '',
+      category: 'category' in item ? (item as any).category || '' : ''
     });
     setIsDialogOpen(true);
   };
@@ -146,11 +151,10 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
         description: "The item has been updated successfully.",
       });
     } else {
-      const newItem: ServiceItem = {
-        id: Date.now().toString(),
-        ...formData,
-        isActive: true
-      };
+             const newItem: ServiceItem = {
+         id: Date.now().toString(),
+         ...formData
+       };
       setCurrentData([...currentData, newItem]);
       toast({
         title: "Item added",
@@ -161,7 +165,9 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
     setIsDialogOpen(false);
   };
 
-  const handleDelete = (itemId: string) => {
+  const handleDelete = (itemId: string | undefined) => {
+    if (!itemId) return;
+    
     const confirmDelete = window.confirm('Are you sure you want to delete this item?');
     if (!confirmDelete) return;
 
@@ -175,22 +181,43 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
     });
   };
 
-  const handleToggleStatus = (itemId: string) => {
-    const currentData = getCurrentData();
-    const updatedData = currentData.map(item =>
-      item.id === itemId
-        ? { ...item, isActive: !item.isActive }
-        : item
-    );
-    setCurrentData(updatedData);
-    
-    toast({
-      title: "Status updated",
-      description: "Item status has been changed successfully.",
-    });
+
+
+  // Helper function to convert plural to singular
+  const toSingular = (plural: string): string => {
+    if (plural.endsWith('ies')) {
+      return plural.slice(0, -3) + 'y'; // specialties -> specialty
+    } else if (plural.endsWith('s')) {
+      return plural.slice(0, -1); // tests -> test
+    }
+    return plural; // fallback
   };
 
   const tabConfig = getTabConfig();
+
+  if (loading) {
+    return (
+      <Card className="card-shadow">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <FileText className="h-5 w-5 mr-2" />
+            Medical Services & Catalogs
+          </CardTitle>
+          <CardDescription>
+            Manage predefined lists of medical specialties, tests, and consultation types.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading medical services...</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="card-shadow">
@@ -223,45 +250,28 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
                 </div>
                 <Button onClick={handleAdd}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add New {tabConfig.title.slice(0, -1)}
+                  Add New {toSingular(tabConfig.title)}
                 </Button>
               </div>
 
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Description</TableHead>
-                      {tabConfig.hasCategory && <TableHead>Category</TableHead>}
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-[100px]">Actions</TableHead>
-                    </TableRow>
+                                         <TableRow>
+                       <TableHead>Name</TableHead>
+                       {tabConfig.hasDescription && <TableHead>Description</TableHead>}
+                       <TableHead className="w-[100px]">Actions</TableHead>
+                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {getCurrentData().map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell>{item.description}</TableCell>
-                        {tabConfig.hasCategory && (
-                          <TableCell>
-                            {item.category && (
-                              <Badge variant="outline">{item.category}</Badge>
-                            )}
-                          </TableCell>
-                        )}
-                        <TableCell>
-                          <button
-                            onClick={() => handleToggleStatus(item.id)}
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              item.isActive
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-400'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-400'
-                            }`}
-                          >
-                            {item.isActive ? 'Active' : 'Inactive'}
-                          </button>
-                        </TableCell>
+                                         {getCurrentData().map((item) => (
+                       <TableRow key={item.id}>
+                         <TableCell className="font-medium">{item.name}</TableCell>
+                         {tabConfig.hasDescription && (
+                           <TableCell>
+                             {'description' in item && (item as any).description}
+                           </TableCell>
+                         )}
                         <TableCell>
                           <div className="flex items-center space-x-1">
                             <Button
@@ -295,7 +305,7 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>
-                {editingItem ? `Edit ${tabConfig.title.slice(0, -1)}` : `Add New ${tabConfig.title.slice(0, -1)}`}
+                {editingItem ? `Edit ${toSingular(tabConfig.title)}` : `Add New ${toSingular(tabConfig.title)}`}
               </DialogTitle>
               <DialogDescription>
                 {editingItem ? 'Update the item information.' : 'Create a new item in the catalog.'}
@@ -313,16 +323,18 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Enter description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  rows={3}
-                />
-              </div>
+                             {tabConfig.hasDescription && (
+                 <div className="space-y-2">
+                   <Label htmlFor="description">Description</Label>
+                   <Textarea
+                     id="description"
+                     placeholder="Enter description"
+                     value={formData.description}
+                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                     rows={3}
+                   />
+                 </div>
+               )}
               
               {tabConfig.hasCategory && (
                 <div className="space-y-2">
@@ -341,11 +353,11 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button 
-                onClick={handleSave}
-                disabled={!formData.name || !formData.description}
-              >
-                {editingItem ? 'Update' : 'Add'} {tabConfig.title.slice(0, -1)}
+                             <Button 
+                 onClick={handleSave}
+                 disabled={!formData.name || (tabConfig.hasDescription && !formData.description)}
+               >
+                {editingItem ? 'Update' : 'Add'} {toSingular(tabConfig.title)}
               </Button>
             </DialogFooter>
           </DialogContent>

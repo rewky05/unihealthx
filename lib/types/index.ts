@@ -81,7 +81,6 @@ export interface Clinic extends BaseEntity {
 export interface DoctorClinicAffiliation extends BaseEntity {
   doctorId: string;
   clinicId: string;
-  role: string;
   startDate: string;
   endDate?: string;
   isActive: boolean;
@@ -106,7 +105,6 @@ export interface ScheduleBlock {
 
 export interface ClinicSchedule {
   clinicId: string;
-  role: string;
   schedules: {
     [dayOfWeek: number]: ScheduleBlock[];
   };

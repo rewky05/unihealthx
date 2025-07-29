@@ -10,21 +10,27 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building, Plus, Edit, Trash2, Calendar, Clock } from "lucide-react";
-import { ClinicDialog } from "./clinic-dialog";
+import { Building, Plus, Edit, Trash2, Calendar, Clock, MapPin, User } from "lucide-react";
+import { ClinicScheduleDialog } from "../doctors/clinic-schedule-dialog";
 
-export interface Clinic {
-  id: string;
+export interface ClinicAffiliation {
+  id?: string;
+  clinicId?: string; // For existing clinics
   name: string;
-  days: string;
-  hours: string;
-  role: string;
+  since: string;
+  schedules: any[]; // ClinicScheduleBlock[]
+  newClinicDetails?: {
+    name: string;
+    addressLine: string;
+    contactNumber: string;
+    type: string;
+  };
 }
 
 interface ClinicCardProps {
-  clinics: Clinic[];
-  onClinicAdd: (clinic: Omit<Clinic, "id">) => void;
-  onClinicEdit: (clinic: Clinic) => void;
+  clinics: ClinicAffiliation[];
+  onClinicAdd: (clinic: Omit<ClinicAffiliation, "id">) => void;
+  onClinicEdit: (clinic: ClinicAffiliation) => void;
   onClinicDelete: (clinicId: string) => void;
 }
 
@@ -35,25 +41,33 @@ export function ClinicCard({
   onClinicDelete,
 }: ClinicCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingClinic, setEditingClinic] = useState<Clinic | null>(null);
+  const [editingClinic, setEditingClinic] = useState<ClinicAffiliation | null>(null);
 
   const handleAdd = () => {
     setEditingClinic(null);
     setIsDialogOpen(true);
   };
 
-  const handleEdit = (clinic: Clinic) => {
+  const handleEdit = (clinic: ClinicAffiliation) => {
     setEditingClinic(clinic);
     setIsDialogOpen(true);
   };
 
-  const handleSave = (clinicData: Omit<Clinic, "id">) => {
+  const handleSave = (clinicData: Omit<ClinicAffiliation, "id">) => {
     if (editingClinic) {
       onClinicEdit({ ...clinicData, id: editingClinic.id });
     } else {
       onClinicAdd(clinicData);
     }
     setIsDialogOpen(false);
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch {
+      return dateString;
+    }
   };
 
   return (
@@ -66,9 +80,9 @@ export function ClinicCard({
                 <Building className="h-5 w-5 mr-2" />
                 Clinic Affiliations
               </CardTitle>
-              {/* <CardDescription>
-                Manage clinic partnerships and roles
-              </CardDescription> */}
+              <CardDescription>
+                Manage clinic partnerships
+              </CardDescription>
             </div>
             <Button onClick={handleAdd} size="sm" variant="outline">
               <Plus className="h-4 w-4 mr-2" />
@@ -77,55 +91,70 @@ export function ClinicCard({
           </div>
         </CardHeader>
         <CardContent>
-          {clinics.length === 0 ? (
+          {!clinics || clinics.length === 0 ? (
             <div className="text-center py-8">
               <Building className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
               <p className="text-muted-foreground">No clinic affiliations</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Add a clinic to establish partnerships
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
               {clinics.map((clinic) => (
                 <div
                   key={clinic.id}
-                  className="grid grid-cols-[auto_1fr_auto] items-center gap-4 p-3 border rounded-lg hover:bg-muted/30 transition-colors"
+                  className="p-4 border rounded-lg hover:bg-muted/30 transition-colors"
                 >
-                  <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Building className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      <Building className="h-4 w-4 text-primary" />
+                      <span className="font-medium text-sm">{clinic.name}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(clinic)}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onClinicDelete(clinic.id!)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm">{clinic.name}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="text-xs">
-                        {clinic.role}
-                      </Badge>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">
+                        Since {formatDate(clinic.since)}
+                      </span>
                     </div>
-                    <div className="flex items-center text-xs text-muted-foreground mt-1">
-                      <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
-                      <span className="truncate">{clinic.days}</span>
-                      <span className="mx-2">•</span>
-                      <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
-                      <span>{clinic.hours}</span>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center space-x-1 flex-shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleEdit(clinic)}
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => onClinicDelete(clinic.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    {clinic.schedules && clinic.schedules.length > 0 && (
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">
+                          {clinic.schedules.length} schedule{clinic.schedules.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    )}
+
+                    {clinic.newClinicDetails && (
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground truncate">
+                          {clinic.newClinicDetails.addressLine}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -134,12 +163,15 @@ export function ClinicCard({
         </CardContent>
       </Card>
 
-      <ClinicDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        clinic={editingClinic}
-        onSave={handleSave}
-      />
+      {/* Clinic Dialog */}
+      {isDialogOpen && (
+        <ClinicScheduleDialog
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          affiliation={editingClinic}
+          onSave={handleSave}
+        />
+      )}
     </>
   );
 }
