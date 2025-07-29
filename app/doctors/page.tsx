@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useDoctors, useDoctorSearch, useDoctorActions } from "@/hooks";
+import { useRealDoctors } from "@/hooks/useRealData";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import {
   Card,
@@ -149,13 +149,8 @@ export default function DoctorsPage() {
     }
     return "All";
   });
-  // Replace mock data with real Firebase data
-  const { doctors, loading, error } = useDoctors();
-  const { searchDoctors, doctors: searchResults, loading: searchLoading } = useDoctorSearch();
-  const { updateDoctorStatus, loading: actionLoading } = useDoctorActions();
-  
-  // Use search results if available, otherwise use all doctors
-  const displayDoctors = searchResults.length > 0 ? searchResults : doctors;
+  // Real Firebase data
+  const { doctors, loading, error } = useRealDoctors();
   // Update url filter status
   useEffect(() => {
     const currentParams = new URLSearchParams(searchParams.toString());
@@ -177,10 +172,10 @@ export default function DoctorsPage() {
     }
   }, [selectedStatus, selectedSpecialty, searchQuery, router, searchParams]);
 
-  const filteredDoctors = doctors.filter((doctor) => {
+      const filteredDoctors = doctors.filter((doctor: any) => {
     const matchesSearch =
-      doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doctor.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      `${doctor.firstName} ${doctor.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (doctor.email && doctor.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
       doctor.specialty.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSpecialty =
       selectedSpecialty === "All" || doctor.specialty === selectedSpecialty;
@@ -320,21 +315,21 @@ export default function DoctorsPage() {
                       <TableCell>
                         <div className="flex items-center space-x-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarImage src={doctor.avatar || ""} />
+                            <AvatarImage src={doctor.profileImageUrl || ""} />
                             <AvatarFallback>
-                              {doctor.name
+                              {`${doctor.firstName} ${doctor.lastName}`
                                 .split(" ")
-                                .map((n) => n[0])
+                                .map((n: string) => n[0])
                                 .join("")}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-medium">{doctor.name}</div>
+                            <div className="font-medium">{doctor.firstName} {doctor.lastName}</div>
                             <div className="text-sm text-muted-foreground">
                               {doctor.email}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {doctor.phone}
+                              {doctor.contactNumber}
                             </div>
                           </div>
                         </div>
@@ -344,7 +339,7 @@ export default function DoctorsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
-                          {doctor.clinics.map((clinic, index) => (
+                          {doctor.clinicAffiliations?.map((clinic: string, index: number) => (
                             <div
                               key={index}
                               className="flex items-center text-sm"
@@ -356,8 +351,8 @@ export default function DoctorsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(doctor.status)}>
-                          {getStatusIcon(doctor.status)}
+                        <Badge className={getStatusColor(doctor.status || 'pending')}>
+                          {getStatusIcon(doctor.status || 'pending')}
                           <span className="ml-1 capitalize">
                             {doctor.status}
                           </span>
@@ -365,14 +360,14 @@ export default function DoctorsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {new Date(doctor.prcExpiry).toLocaleDateString()}
+                          {doctor.prcExpiryDate ? new Date(doctor.prcExpiryDate).toLocaleDateString() : 'N/A'}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           PRC: {doctor.prcId}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {new Date(doctor.joinDate).toLocaleDateString()}
+                        {doctor.createdAt ? new Date(doctor.createdAt).toLocaleDateString() : 'N/A'}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>

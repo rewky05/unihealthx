@@ -8,6 +8,7 @@ export interface BaseEntity {
 
 // Doctors from your database
 export interface Doctor {
+  id?: string;
   userId: string;
   firstName: string;
   lastName: string;
@@ -49,6 +50,7 @@ export interface Doctor {
 
 // Clinics from your database
 export interface Clinic {
+  id?: string;
   name: string;
   addressLine: string;
   contactNumber: string;
@@ -58,6 +60,7 @@ export interface Clinic {
 
 // Feedback from your database
 export interface Feedback {
+  id?: string;
   patientFirstName: string;
   patientLastName: string;
   patientId: string;
@@ -99,6 +102,7 @@ export interface User {
 
 // Appointments from your database
 export interface Appointment {
+  id?: string;
   patientId: string;
   patientFirstName: string;
   patientLastName: string;
@@ -144,6 +148,7 @@ export interface Patient {
 
 // Referrals from your database
 export interface Referral {
+  id?: string;
   patientId: string;
   patientFirstName: string;
   patientLastName: string;

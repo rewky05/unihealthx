@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useDashboard, useRealtimeDashboard, useDashboardAlerts } from "@/hooks";
+import { useRealDashboard } from "@/hooks/useRealData";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import {
   Card,
@@ -32,7 +32,7 @@ const { dashboardData, recentActivity, loading: dashboardLoading, error: dashboa
 const stats = dashboardData ? [
   {
     title: "Total Doctors",
-    value: dashboardData.stats.totalDoctors.toString(),
+    value: dashboardData.totalDoctors.toString(),
     change: "+12%", // TODO: Calculate from historical data
     trend: "up" as const,
     icon: Users,
@@ -40,7 +40,7 @@ const stats = dashboardData ? [
   },
   {
     title: "Verified Doctors", 
-    value: dashboardData.stats.verifiedDoctors.toString(),
+    value: dashboardData.verifiedDoctors.toString(),
     change: "+5%",
     trend: "up" as const,
     icon: UserCheck,
@@ -48,7 +48,7 @@ const stats = dashboardData ? [
   },
   {
     title: "Pending Verification",
-    value: dashboardData.stats.pendingVerification.toString(),
+    value: dashboardData.pendingVerification.toString(),
     change: "-3%",
     trend: "down" as const,
     icon: Clock,
@@ -56,7 +56,7 @@ const stats = dashboardData ? [
   },
   {
     title: "Avg Rating",
-    value: dashboardData.stats.averageRating.toFixed(1),
+    value: dashboardData.averageRating.toFixed(1),
     change: "+0.2",
     trend: "up" as const,
     icon: TrendingUp,
