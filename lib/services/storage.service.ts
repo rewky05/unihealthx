@@ -1,7 +1,5 @@
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
-import { app } from '@/lib/firebase/config';
-
-const storage = getStorage(app);
+import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
+import { storage } from '@/lib/firebase/config';
 
 export interface UploadResult {
   url: string;
