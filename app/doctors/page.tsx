@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useDoctors, useDoctorSearch, useDoctorActions } from "@/hooks";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import {
   Card,
@@ -148,7 +149,13 @@ export default function DoctorsPage() {
     }
     return "All";
   });
-  const [doctors] = useState(mockDoctors);
+  // Replace mock data with real Firebase data
+  const { doctors, loading, error } = useDoctors();
+  const { searchDoctors, doctors: searchResults, loading: searchLoading } = useDoctorSearch();
+  const { updateDoctorStatus, loading: actionLoading } = useDoctorActions();
+  
+  // Use search results if available, otherwise use all doctors
+  const displayDoctors = searchResults.length > 0 ? searchResults : doctors;
   // Update url filter status
   useEffect(() => {
     const currentParams = new URLSearchParams(searchParams.toString());

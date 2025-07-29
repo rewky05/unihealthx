@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useDashboard, useRealtimeDashboard, useDashboardAlerts } from "@/hooks";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import {
   Card,
