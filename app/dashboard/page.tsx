@@ -25,83 +25,61 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-const stats = [
+// Real-time Firebase data
+const { dashboardData, loading: dashboardLoading, error: dashboardError } = useDashboard();
+const { realtimeData, loading: realtimeLoading } = useRealtimeDashboard();
+const { alerts, totalAlerts } = useDashboardAlerts();
+
+// Dynamic stats from Firebase
+const stats = dashboardData ? [
   {
     title: "Total Doctors",
-    value: "247",
-    change: "+12%",
-    trend: "up",
+    value: dashboardData.stats.totalDoctors.toString(),
+    change: "+12%", // TODO: Calculate from historical data
+    trend: "up" as const,
     icon: Users,
     color: "text-blue-600",
   },
   {
-    title: "Verified Doctors",
-    value: "231",
+    title: "Verified Doctors", 
+    value: dashboardData.stats.verifiedDoctors.toString(),
     change: "+5%",
-    trend: "up",
+    trend: "up" as const,
     icon: UserCheck,
     color: "text-green-600",
   },
   {
     title: "Pending Verification",
-    value: "16",
+    value: dashboardData.stats.pendingVerification.toString(),
     change: "-3%",
-    trend: "down",
+    trend: "down" as const,
     icon: Clock,
     color: "text-orange-600",
   },
   {
     title: "Avg Rating",
-    value: "4.8",
+    value: dashboardData.stats.averageRating.toFixed(1),
     change: "+0.2",
-    trend: "up",
+    trend: "up" as const,
     icon: TrendingUp,
     color: "text-indigo-600",
   },
-];
+] : [];
 
-const recentActivity = [
-  {
-    id: 1,
-    action: "Doctor verified",
-    user: "Dr. Maria Santos",
-    time: "5 minutes ago",
-    type: "success",
-    icon: CheckCircle,
-  },
-  {
-    id: 2,
-    action: "New feedback received",
-    user: "Patient review for Dr. Juan Dela Cruz",
-    time: "12 minutes ago",
-    type: "info",
-    icon: MessageSquare,
-  },
-  {
-    id: 3,
-    action: "Document uploaded",
-    user: "Dr. Ana Rodriguez - PRC License",
-    time: "1 hour ago",
-    type: "info",
-    icon: Activity,
-  },
-  {
-    id: 4,
-    action: "Schedule updated",
-    user: "Dr. Carlos Mendoza - Cardiology",
-    time: "2 hours ago",
-    type: "info",
-    icon: Calendar,
-  },
-  {
-    id: 5,
-    action: "Verification required",
-    user: "Dr. Elena Reyes - Missing PRC",
-    time: "3 hours ago",
-    type: "warning",
-    icon: AlertTriangle,
-  },
-];
+// Real-time activity from Firebase
+const recentActivity = realtimeData?.recentActivity.map(log => ({
+  id: log.id,
+  action: log.action,
+  user: log.userEmail,
+  time: new Date(log.createdAt).toLocaleString(),
+  type: log.category === 'verification' ? 'success' : 
+        log.category === 'feedback' ? 'info' : 
+        log.category === 'system' ? 'warning' : 'info',
+  icon: log.category === 'verification' ? CheckCircle :
+        log.category === 'feedback' ? MessageSquare :
+        log.category === 'schedule' ? Calendar :
+        log.category === 'profile' ? Users : Activity,
+})) || [];
 
 const pendingTasks = [
   {
@@ -121,6 +99,37 @@ const pendingTasks = [
 ];
 
 export default function DashboardPage() {
+  // Show loading state
+  if (dashboardLoading || realtimeLoading) {
+    return (
+      <DashboardLayout title="Dashboard">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show error state
+  if (dashboardError) {
+    return (
+      <DashboardLayout title="Dashboard">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="text-red-500 mb-4">
+              <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
+              <p>Error loading dashboard</p>
+            </div>
+            <p className="text-sm text-muted-foreground">{dashboardError}</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout title="Dashboard">
       <div className="space-y-8">
