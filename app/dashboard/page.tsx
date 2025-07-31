@@ -26,25 +26,6 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-const pendingTasks = [
-  {
-    id: 1,
-    title: "Review Dr. Santos credentials",
-    description: "PRC license and board certification pending review",
-    priority: "high",
-    dueDate: "Today",
-  },
-  {
-    id: 2,
-    title: "Process clinic affiliation",
-    description: "Metro Manila Hospital - 3 doctors pending approval",
-    priority: "medium",
-    dueDate: "Tomorrow",
-  },
-];
-
-
-
 export default function DashboardPage() {
   // ✅ OPTIMIZED - Using React Query hooks with caching
   const { 
@@ -222,22 +203,32 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {activityList.map((activity: any) => (
-                  <div key={activity.id} className="flex items-center gap-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                      <Clock className="h-4 w-4" />
+                {activityList.length > 0 ? (
+                  activityList.map((activity: any) => (
+                    <div key={activity.id} className="flex items-center gap-4">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                        <Clock className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <p className="text-sm font-medium">{activity.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {activity.description}
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {activity.type}
+                      </Badge>
                     </div>
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium">{activity.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {activity.description}
-                      </p>
-                    </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {activity.type}
-                    </Badge>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No recent activity</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      No activities to display at this time
+                    </p>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -255,26 +246,13 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {pendingTasks.map((task) => (
-                  <div key={task.id} className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">{task.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {task.description}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge 
-                        variant={task.priority === 'high' ? 'destructive' : 'secondary'}
-                      >
-                        {task.priority}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        Due: {task.dueDate}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                <div className="text-center py-8">
+                  <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No pending tasks</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    No tasks require your attention at this time
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -23,15 +23,17 @@ import {
   AlertCircle,
   CheckCircle
 } from 'lucide-react';
-import { createUserWithEmailAndPassword, updateProfile, deleteUser } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, deleteUser, signInWithEmailAndPassword } from 'firebase/auth';
 import { ref, set, get, remove } from 'firebase/database';
 import { auth, db } from '@/lib/firebase/config';
 import { useAuth } from '@/hooks/useAuth';
+import { AUTH_CONFIG } from '@/lib/config/auth';
 
 interface AdminUser {
   uid: string;
   email: string;
-  displayName: string;
+  firstName: string;
+  lastName: string;
   role: 'admin' | 'superadmin';
   isActive: boolean;
   createdAt: string;
@@ -52,8 +54,8 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    displayName: '',
-    role: 'admin' as 'admin' | 'superadmin'
+    firstName: '',
+    lastName: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -65,15 +67,17 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
   const loadAdminUsers = async () => {
     try {
       setLoading(true);
-      const usersRef = ref(db, 'adminUsers');
+      const usersRef = ref(db, 'users');
       const snapshot = await get(usersRef);
       
       if (snapshot.exists()) {
         const usersData = snapshot.val();
-        const usersList = Object.keys(usersData).map(uid => ({
-          uid,
-          ...usersData[uid]
-        }));
+        const usersList = Object.keys(usersData)
+          .map(uid => ({
+            uid,
+            ...usersData[uid]
+          }))
+          .filter((user: any) => user.isActive === true); // Only show active users
         setUsers(usersList);
       } else {
         setUsers([]);
@@ -95,6 +99,9 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
     setIsSubmitting(true);
     setError(null);
 
+    // Capture the creator's email before creating the new user
+    const creatorEmail = auth.currentUser?.email || 'system';
+
     try {
       // Create user in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(
@@ -103,22 +110,27 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
         formData.password
       );
 
-      // Update display name
+      // Update display name with firstName
       await updateProfile(userCredential.user, {
-        displayName: formData.displayName
+        displayName: formData.firstName
       });
 
       // Store user data in Realtime Database
       const userData = {
         email: formData.email,
-        displayName: formData.displayName,
-        role: formData.role,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        role: 'admin', // Always set to admin since this is admin user creation
         isActive: true,
         createdAt: new Date().toISOString(),
-        createdBy: auth.currentUser?.email || 'system'
+        createdBy: creatorEmail
       };
 
-      await set(ref(db, `adminUsers/${userCredential.user.uid}`), userData);
+      await set(ref(db, `users/${userCredential.user.uid}`), userData);
+
+      // Immediately sign out to prevent the header from showing the new user's email
+      // The useAuth hook will handle restoring the correct user state
+      await auth.signOut();
 
       // Refresh users list
       await loadAdminUsers();
@@ -127,8 +139,8 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
       setFormData({
         email: '',
         password: '',
-        displayName: '',
-        role: 'admin'
+        firstName: '',
+        lastName: ''
       });
       setIsDialogOpen(false);
       onUnsavedChanges(false);
@@ -153,14 +165,14 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
     }
 
     const confirmDelete = window.confirm(
-      `Are you sure you want to delete ${user.displayName}? This action cannot be undone.`
+      `Are you sure you want to delete ${user.firstName}? This action cannot be undone.`
     );
 
     if (!confirmDelete) return;
 
     try {
       // Remove from Realtime Database
-      await remove(ref(db, `adminUsers/${user.uid}`));
+      await remove(ref(db, `users/${user.uid}`));
       
       // Refresh users list
       await loadAdminUsers();
@@ -178,7 +190,7 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
     }
 
     try {
-      await set(ref(db, `adminUsers/${user.uid}/isActive`), !user.isActive);
+      await set(ref(db, `users/${user.uid}/isActive`), !user.isActive);
       await loadAdminUsers();
     } catch (error) {
       console.error('Error updating user status:', error);
@@ -187,15 +199,15 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
   };
 
   if (!isSuperadmin()) {
-    return (
+  return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
+      <CardHeader>
+        <CardTitle className="flex items-center">
             <Shield className="h-5 w-5 mr-2" />
-            User & Role Management
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          User & Role Management
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
@@ -210,7 +222,7 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">User & Role Management</h2>
           <p className="text-muted-foreground">
@@ -220,9 +232,9 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4 mr-2" />
               Add Admin User
-            </Button>
+              </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
@@ -252,31 +264,25 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
                   placeholder="Enter secure password"
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="displayName">Display Name</Label>
-                <Input
-                  id="displayName"
-                  value={formData.displayName}
-                  onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                  placeholder="Full Name"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="role">Role</Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value: 'admin' | 'superadmin') => 
-                    setFormData({ ...formData, role: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="superadmin">Superadmin</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    placeholder="First Name"
+                  />
+            </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    placeholder="Last Name"
+                  />
+                </div>
               </div>
             </div>
             <DialogFooter>
@@ -316,7 +322,7 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
           ) : users.length === 0 ? (
             <div className="text-center py-8">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No admin users found</p>
+              <p className="text-muted-foreground">No active admin users found</p>
               <p className="text-sm text-muted-foreground mt-1">
                 Create your first admin user to get started
               </p>
@@ -342,7 +348,7 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
                           <Mail className="h-4 w-4 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{user.displayName}</p>
+                          <p className="font-medium">{user.firstName}</p>
                           <p className="text-sm text-muted-foreground">{user.email}</p>
                         </div>
                       </div>
@@ -419,8 +425,8 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+      </CardContent>
+    </Card>
     </div>
   );
 }

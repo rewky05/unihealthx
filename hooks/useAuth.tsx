@@ -2,13 +2,17 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase/config';
+import { ref, get } from 'firebase/database';
+import { auth, db } from '@/lib/firebase/config';
 import { AUTH_CONFIG } from '@/lib/config/auth';
 
 interface User {
   email: string;
   role: 'superadmin' | 'admin';
   isAuthenticated: boolean;
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
 }
 
 interface AuthContextType {
@@ -35,6 +39,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: storedEmail,
         role: 'superadmin' as const,
         isAuthenticated: true,
+        firstName: 'Super',
+        lastName: 'Admin',
+        displayName: 'Super Admin',
       };
     }
     return null;
@@ -48,15 +55,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Firebase user authenticated
-        const userRole = localStorage.getItem('userRole') as 'superadmin' | 'admin' || 'admin';
-        setUser({
-          email: firebaseUser.email || '',
-          role: userRole,
-          isAuthenticated: true,
-        });
+        // Firebase user authenticated - fetch additional user details
+        try {
+          const userRef = ref(db, `users/${firebaseUser.uid}`);
+          const snapshot = await get(userRef);
+          
+          let userDetails = {
+            email: firebaseUser.email || '',
+            role: 'admin' as const,
+            isAuthenticated: true,
+            firstName: '',
+            lastName: '',
+            displayName: firebaseUser.displayName || '',
+          };
+
+          if (snapshot.exists()) {
+            const userData = snapshot.val();
+            userDetails = {
+              ...userDetails,
+              firstName: userData.firstName || '',
+              lastName: userData.lastName || '',
+              role: userData.role || 'admin',
+            };
+          }
+
+          setUser(userDetails);
+        } catch (error) {
+          console.error('Error fetching user details:', error);
+          // Fallback to basic user info
+          setUser({
+            email: firebaseUser.email || '',
+            role: 'admin' as const,
+            isAuthenticated: true,
+            firstName: '',
+            lastName: '',
+            displayName: firebaseUser.displayName || '',
+          });
+        }
       } else {
         // Check for superadmin in localStorage
         const superadminUser = checkSuperadminAuth();

@@ -56,34 +56,20 @@ export function AffiliationsEducationForm({
   onUpdate,
 }: AffiliationsEducationFormProps) {
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
-  const [editingSchedule, setEditingSchedule] = useState<SpecialistSchedule | null>(
-    null
-  );
 
   const handleAddSchedule = () => {
-    setEditingSchedule(null);
     setIsScheduleDialogOpen(true);
   };
 
   const handleEditSchedule = (schedule: SpecialistSchedule) => {
-    setEditingSchedule(schedule);
+    // For now, we'll just open the dialog with all schedules
+    // The dialog will handle editing individual schedules
     setIsScheduleDialogOpen(true);
   };
 
   const handleScheduleSave = (scheduleData: Omit<SpecialistSchedule, "id">) => {
-    if (editingSchedule) {
-      const updatedSchedules = data.schedules.map((s) =>
-        s.id === editingSchedule.id ? { ...scheduleData, id: editingSchedule.id } : s
-      );
-      onUpdate({ schedules: updatedSchedules });
-    } else {
-      const newSchedule: SpecialistSchedule = {
-        ...scheduleData,
-        id: Date.now().toString(),
-      };
-      onUpdate({ schedules: [...data.schedules, newSchedule] });
-    }
-    setIsScheduleDialogOpen(false);
+    // This function is no longer needed as the dialog handles all schedule management
+    // The onSave callback from the dialog will update all schedules at once
   };
   const handleAddEducation = () => {
     // TODO: Open education dialog
@@ -376,39 +362,10 @@ export function AffiliationsEducationForm({
         <ClinicScheduleDialog
           open={isScheduleDialogOpen}
           onOpenChange={setIsScheduleDialogOpen}
-          affiliation={editingSchedule ? {
-            id: editingSchedule.id,
-            clinicId: editingSchedule.practiceLocation?.clinicId,
-            name: editingSchedule.practiceLocation?.roomOrUnit || '',
-            since: editingSchedule.validFrom || new Date().toISOString().split('T')[0],
-            schedules: [editingSchedule],
-            newClinicDetails: {
-              name: editingSchedule.practiceLocation?.roomOrUnit || '',
-              addressLine: '',
-              contactNumber: '',
-              type: 'multi_specialty_clinic'
-            }
-          } : null}
-          onSave={(affiliation) => {
-            // Convert affiliation data to SpecialistSchedule format
-            const scheduleData = affiliation.schedules[0];
-            if (scheduleData) {
-              handleScheduleSave({
-                specialistId: scheduleData.specialistId || '',
-                isActive: true,
-                practiceLocation: {
-                  clinicId: scheduleData.practiceLocation?.clinicId || '',
-                  roomOrUnit: scheduleData.practiceLocation?.roomOrUnit || ''
-                },
-                recurrence: {
-                  dayOfWeek: scheduleData.recurrence?.dayOfWeek || [],
-                  type: scheduleData.recurrence?.type || 'weekly'
-                },
-                scheduleType: scheduleData.scheduleType || 'Weekly',
-                slotTemplate: scheduleData.slotTemplate || {},
-                validFrom: scheduleData.validFrom || new Date().toISOString().split('T')[0]
-              });
-            }
+          existingSchedules={data.schedules}
+          onSave={(schedules) => {
+            // Update all schedules at once
+            onUpdate({ schedules });
           }}
         />
       )}

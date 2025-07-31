@@ -34,10 +34,7 @@ export interface Doctor {
   boardCertifications?: string[];
   fellowships?: string[];
   accreditations?: string[];
-  clinicAffiliations?: {
-    clinicId: string;
-    isActive: boolean;
-  }[];
+  clinicAffiliations?: string[];
   lastLogin?: string;
   lastUpdated?: string;
   createdAt?: string;

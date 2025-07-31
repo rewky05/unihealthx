@@ -232,14 +232,14 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
       </CardHeader>
       <CardContent>
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="specialties">Specialties</TabsTrigger>
-            <TabsTrigger value="lab-tests">Lab Tests</TabsTrigger>
-            <TabsTrigger value="imaging-tests">Imaging</TabsTrigger>
+            {/* <TabsTrigger value="lab-tests">Lab Tests</TabsTrigger>
+            <TabsTrigger value="imaging-tests">Imaging</TabsTrigger> */}
             <TabsTrigger value="consultation-types">Consultations</TabsTrigger>
           </TabsList>
 
-          {['specialties', 'lab-tests', 'imaging-tests', 'consultation-types'].map((tab) => (
+          {['specialties', 'consultation-types'].map((tab) => (
             <TabsContent key={tab} value={tab} className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">

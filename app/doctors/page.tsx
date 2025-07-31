@@ -181,182 +181,208 @@ export default function DoctorsPage() {
           </div>
         </div>
 
-        {/* Search and Filters */}
-        <Card className="card-shadow">
-          <CardContent className="pt-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search specialists by name, email, or specialty..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Select
-                  value={selectedSpecialty}
-                  onValueChange={setSelectedSpecialty}
-                >
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Specialty" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {specialties.map((specialty) => (
-                      <SelectItem key={specialty} value={specialty}>
-                        {specialty}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={selectedStatus}
-                  onValueChange={setSelectedStatus}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statuses.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        {/* Show loading state */}
+        {(loading || clinicsLoading) && (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading specialist data...</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        )}
 
-        {/* Doctors Table */}
-        <Card className="card-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Users className="h-5 w-5 mr-2" />
-              Specialist Doctors ({filteredDoctors.length})
-            </CardTitle>
-            <CardDescription>
-              Comprehensive list of specialist healthcare professionals
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Doctor</TableHead>
-                    <TableHead>Specialty</TableHead>
-                    {/* <TableHead>Professional Fee</TableHead> */}
-                    <TableHead>Clinics</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>PRC Expiry</TableHead>
-                    <TableHead>Join Date</TableHead>
-                    <TableHead className="w-[50px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDoctors.map((doctor) => (
-                    <TableRow key={doctor.id} className="table-row-hover">
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={doctor.profileImageUrl || ""} />
-                            <AvatarFallback>
-                              {`${doctor.firstName} ${doctor.lastName}`
-                                .split(" ")
-                                .map((n: string) => n[0])
-                                .join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{doctor.firstName} {doctor.lastName}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {doctor.email}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {doctor.contactNumber}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{doctor.specialty}</Badge>
-                      </TableCell>
-                      {/* <TableCell>
-                        <div className="text-sm">
-                          {formatPhilippinePeso(doctor.professionalFee)}
-                        </div>
-                      </TableCell> */}
-                      <TableCell>
-                        <div className="space-y-1">
-                          {doctor.clinicAffiliations?.map((clinic: { clinicId: string; isActive: boolean }, index: number) => (
-                            <div
-                              key={index}
-                              className="flex items-center text-sm"
-                            >
-                              <MapPin className="h-3 w-3 mr-1 text-muted-foreground" />
-                              {getClinicName(clinic.clinicId)}
-                            </div>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(doctor.status || 'pending')}>
-                          {getStatusIcon(doctor.status || 'pending')}
-                          <span className="ml-1 capitalize">
-                            {doctor.status}
-                          </span>
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {doctor.prcExpiryDate ? new Date(doctor.prcExpiryDate).toLocaleDateString() : 'N/A'}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          PRC: {doctor.prcId}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {doctor.createdAt ? new Date(doctor.createdAt).toLocaleDateString() : 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/doctors/${doctor.id}`}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Details
-                              </Link>
-                            </DropdownMenuItem>
-                            {/* <DropdownMenuItem asChild>
-                              <Link href={`/doctors/${doctor.id}/edit`}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                              </Link>
-                            </DropdownMenuItem> */}
-                            <DropdownMenuItem className="text-destructive">
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+        {/* Show error state */}
+        {error && (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="text-red-500 mb-4">⚠️</div>
+              <p className="text-red-600 mb-2">Failed to load specialist data</p>
+              <p className="text-muted-foreground text-sm">{error}</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        )}
+
+        {/* Show content when not loading and no error */}
+        {!loading && !clinicsLoading && !error && (
+          <>
+            {/* Search and Filters */}
+            <Card className="card-shadow">
+              <CardContent className="pt-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search specialists by name, email, or specialty..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Select
+                      value={selectedSpecialty}
+                      onValueChange={setSelectedSpecialty}
+                    >
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Specialty" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {specialties.map((specialty) => (
+                          <SelectItem key={specialty} value={specialty}>
+                            {specialty}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={selectedStatus}
+                      onValueChange={setSelectedStatus}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statuses.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Doctors Table */}
+            <Card className="card-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Users className="h-5 w-5 mr-2" />
+                  Specialist Doctors ({filteredDoctors.length})
+                </CardTitle>
+                <CardDescription>
+                  Comprehensive list of specialist healthcare professionals
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Doctor</TableHead>
+                        <TableHead>Specialty</TableHead>
+                        {/* <TableHead>Professional Fee</TableHead> */}
+                        <TableHead>Clinics</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>PRC Expiry</TableHead>
+                        <TableHead>Join Date</TableHead>
+                        <TableHead className="w-[50px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredDoctors.map((doctor) => (
+                        <TableRow key={doctor.id} className="table-row-hover">
+                          <TableCell>
+                            <div className="flex items-center space-x-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={doctor.profileImageUrl || ""} />
+                                <AvatarFallback>
+                                  {`${doctor.firstName} ${doctor.lastName}`
+                                    .split(" ")
+                                    .map((n: string) => n[0])
+                                    .join("")}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-medium">{doctor.firstName} {doctor.lastName}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {doctor.email}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {doctor.contactNumber}
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{doctor.specialty}</Badge>
+                          </TableCell>
+                          {/* <TableCell>
+                            <div className="text-sm">
+                              {formatPhilippinePeso(doctor.professionalFee)}
+                            </div>
+                          </TableCell> */}
+                          <TableCell>
+                            <div className="space-y-1">
+                              {doctor.clinicAffiliations?.map((clinic: string, index: number) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center text-sm"
+                                >
+                                  <MapPin className="h-3 w-3 mr-1 text-muted-foreground" />
+                                  {getClinicName(clinic)}
+                                </div>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(doctor.status || 'pending')}>
+                              {getStatusIcon(doctor.status || 'pending')}
+                              <span className="ml-1 capitalize">
+                                {doctor.status}
+                              </span>
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              {doctor.prcExpiryDate ? new Date(doctor.prcExpiryDate).toLocaleDateString() : 'N/A'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              PRC: {doctor.prcId}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {doctor.createdAt ? new Date(doctor.createdAt).toLocaleDateString() : 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/doctors/${doctor.id}`}>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Details
+                                  </Link>
+                                </DropdownMenuItem>
+                                {/* <DropdownMenuItem asChild>
+                                  <Link href={`/doctors/${doctor.id}/edit`}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </Link>
+                                </DropdownMenuItem> */}
+                                <DropdownMenuItem className="text-destructive">
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );

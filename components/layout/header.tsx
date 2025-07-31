@@ -25,6 +25,24 @@ export function Header({ title, onMenuClick }: HeaderProps) {
   const { user, signOut, isSuperadmin } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  // Get user display information
+  const getUserDisplayName = () => {
+    if (isSuperadmin()) {
+      return "Super Admin";
+    }
+    if (user?.firstName) {
+      return user.firstName;
+    }
+    if (user?.displayName) {
+      return user.displayName;
+    }
+    return "Admin User";
+  };
+
+  const getUserEmail = () => {
+    return user?.email || "admin@unihealth.ph";
+  };
+
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
@@ -88,9 +106,9 @@ export function Header({ title, onMenuClick }: HeaderProps) {
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user.email}</p>
+                <p className="text-sm font-medium leading-none">{getUserDisplayName()}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  {user.role === 'superadmin' ? 'Super Administrator' : 'Administrator'}
+                  {getUserEmail()}
                 </p>
               </div>
             </DropdownMenuLabel>

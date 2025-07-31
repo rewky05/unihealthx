@@ -12,6 +12,7 @@ import { AffiliationsEducationForm } from '@/components/doctors/affiliations-edu
 import { DocumentUploadsForm } from '@/components/doctors/document-uploads-form';
 import { ArrowLeft, UserPlus } from 'lucide-react';
 import Link from 'next/link';
+import { RealDataService } from '@/lib/services/real-data.service';
 
 export interface DoctorFormData {
   // Personal Information
@@ -128,6 +129,8 @@ export default function AddDoctorPage() {
     setIsSubmitting(true);
     
     try {
+      const realDataService = new RealDataService();
+      
       // Create doctor data for Firebase
       const doctorData = {
         firstName: formData.firstName,
@@ -145,27 +148,35 @@ export default function AddDoctorPage() {
         medicalLicense: formData.medicalLicense,
         prcId: formData.prcId,
         prcExpiry: formData.prcExpiry,
+        professionalFee: formData.professionalFee,
         isSpecialist: true, // Always true for this form
         isGeneralist: false,
         status: 'pending',
-        createdAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString(),
         // Add schedules data
         schedules: formData.schedules,
+        // Add education and certifications
+        education: formData.education,
+        certifications: formData.certifications,
         // Add other fields as needed
+        accreditations: [], // Can be added later
+        fellowships: [], // Can be added later
+        yearsOfExperience: 0 // Can be calculated or added later
       };
 
-      // TODO: Add Firebase service call here
-      // await realDataService.createDoctor(doctorData);
-      console.log('Submitting doctor data to Firebase:', doctorData);
+      // Create doctor in Firebase (users, doctors, and specialistSchedules nodes)
+      const { doctorId, temporaryPassword } = await realDataService.createDoctor(doctorData);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('Doctor created successfully with ID:', doctorId);
+      console.log('Temporary password:', temporaryPassword);
+      
+      // Show success message with credentials
+      alert(`Doctor created successfully!\n\nEmail: ${formData.email}\nTemporary Password: ${temporaryPassword}\n\nPlease share these credentials with the doctor. They should change their password on first login.`);
       
       // Navigate back to doctors list
       router.push('/doctors');
     } catch (error) {
       console.error('Error creating doctor:', error);
+      alert('Error creating doctor. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

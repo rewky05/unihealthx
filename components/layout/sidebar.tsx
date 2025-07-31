@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Users,
   Calendar,
@@ -52,6 +53,28 @@ const navigationItems = [
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
+  const { user, isSuperadmin } = useAuth();
+
+  // Get user display information
+  const getUserDisplayName = () => {
+    if (isSuperadmin()) {
+      return "Super Admin";
+    }
+    if (user?.firstName) {
+      return user.firstName;
+    }
+    if (user?.displayName) {
+      return user.displayName;
+    }
+    return "Admin User";
+  };
+
+  const getUserEmail = () => {
+    if (isSuperadmin()) {
+      return "superadmin@unihealth.ph";
+    }
+    return user?.email || "admin@unihealth.ph";
+  };
 
   return (
     <>
@@ -164,25 +187,14 @@ export function Sidebar() {
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">
-                  Admin User
+                  {getUserDisplayName()}
                 </p>
                 <p className="text-xs text-slate-300 truncate">
-                  admin@unihealth.ph
+                  {getUserEmail()}
                 </p>
               </div>
             )}
           </div>
-
-          <Button
-            variant="ghost"
-            className={cn(
-              "mt-2 w-full text-slate-300 hover:bg-white/10 hover:text-white",
-              isCollapsed && "px-2"
-            )}
-          >
-            <LogOut className={cn("h-4 w-4", !isCollapsed && "mr-2")} />
-            {!isCollapsed && "Sign Out"}
-          </Button>
         </div>
       </div>
 

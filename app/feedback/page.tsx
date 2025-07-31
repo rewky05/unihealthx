@@ -147,7 +147,7 @@ export default function FeedbackPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card className="stat-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -179,7 +179,7 @@ export default function FeedbackPage() {
             </CardContent>
           </Card>
 
-          <Card className="stat-card">
+          {/* <Card className="stat-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Pending Reviews
@@ -192,7 +192,7 @@ export default function FeedbackPage() {
                 Require attention
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           <Card className="stat-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -238,7 +238,7 @@ export default function FeedbackPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                {/* <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                   <SelectTrigger className="w-32">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -249,7 +249,7 @@ export default function FeedbackPage() {
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </Select> */}
               </div>
             </div>
           </CardContent>
@@ -277,7 +277,7 @@ export default function FeedbackPage() {
                     <TableHead>Rating</TableHead>
                     <TableHead>Comment</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
+                    {/* <TableHead>Status</TableHead> */}
                     <TableHead className="w-[50px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -332,11 +332,11 @@ export default function FeedbackPage() {
                           <span>{new Date(item.date || item.createdAt || Date.now()).toLocaleDateString()}</span>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      {/* <TableCell>
                         <Badge className={getStatusColor(item.status || 'pending')}>
                           {item.status || 'pending'}
                         </Badge>
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell>
                         <Dialog>
                           <DialogTrigger asChild>

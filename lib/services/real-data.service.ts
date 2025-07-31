@@ -1,5 +1,6 @@
-import { ref, get, onValue, query, orderByChild, equalTo } from 'firebase/database';
-import { db } from '@/lib/firebase/config';
+import { ref, get, onValue, query, orderByChild, equalTo, set, push } from 'firebase/database';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { db, auth } from '@/lib/firebase/config';
 import type { 
   Doctor, 
   Clinic, 
@@ -17,6 +18,109 @@ import type {
 
 export class RealDataService {
   /**
+   * Generate a random temporary password
+   */
+  private generateTemporaryPassword(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  }
+
+  /**
+   * Create a new doctor with entries in users, doctors, and specialistSchedules nodes
+   */
+  async createDoctor(doctorData: any): Promise<{ doctorId: string; temporaryPassword: string }> {
+    try {
+      const doctorId = `doc_${doctorData.firstName.toLowerCase()}_${doctorData.lastName.toLowerCase()}_${Date.now()}`;
+      const timestamp = new Date().toISOString();
+      const temporaryPassword = this.generateTemporaryPassword();
+
+      // 1. Create Firebase Authentication account
+      await createUserWithEmailAndPassword(auth, doctorData.email, temporaryPassword);
+
+      // 2. Create user entry
+      const userData = {
+        contactNumber: doctorData.phone,
+        createdAt: timestamp,
+        email: doctorData.email,
+        firstName: doctorData.firstName,
+        lastName: doctorData.lastName,
+        role: 'specialist',
+        specialty: doctorData.specialty
+      };
+
+      // 3. Create doctor entry
+      const doctorEntry = {
+        accreditations: doctorData.accreditations || [],
+        address: doctorData.address,
+        boardCertifications: doctorData.certifications?.map((cert: any) => cert.name) || [],
+        civilStatus: doctorData.civilStatus,
+        clinicAffiliations: doctorData.schedules?.map((schedule: any) => schedule.practiceLocation.clinicId) || [],
+        contactNumber: doctorData.phone,
+        createdAt: timestamp,
+        dateOfBirth: doctorData.dateOfBirth,
+        education: doctorData.education || [],
+        email: doctorData.email,
+        fellowships: doctorData.fellowships || [],
+        firstName: doctorData.firstName,
+        gender: doctorData.gender,
+        isGeneralist: false,
+        isSpecialist: true,
+        lastLogin: timestamp,
+        lastName: doctorData.lastName,
+        lastUpdated: timestamp,
+        medicalLicenseNumber: doctorData.medicalLicense,
+        prcExpiryDate: doctorData.prcExpiry,
+        prcId: doctorData.prcId,
+        profileImageUrl: doctorData.profileImageUrl || '',
+        specialty: doctorData.specialty,
+        status: 'pending',
+        userId: doctorId,
+        verificationDate: null,
+        verificationNotes: '',
+        verifiedByAdminId: null,
+        yearsOfExperience: doctorData.yearsOfExperience || 0
+      };
+
+      // 4. Create specialist schedules
+      const schedulesData: any = {};
+      if (doctorData.schedules && doctorData.schedules.length > 0) {
+        doctorData.schedules.forEach((schedule: any, index: number) => {
+          const scheduleId = `sched_${doctorId}_${index + 1}`;
+          schedulesData[scheduleId] = {
+            createdAt: timestamp,
+            isActive: schedule.isActive,
+            lastUpdated: timestamp,
+            practiceLocation: schedule.practiceLocation,
+            recurrence: schedule.recurrence,
+            scheduleType: schedule.scheduleType,
+            slotTemplate: schedule.slotTemplate,
+            specialistId: doctorId,
+            validFrom: schedule.validFrom
+          };
+        });
+      }
+
+      // Save to Firebase
+      await Promise.all([
+        set(ref(db, `users/${doctorId}`), userData),
+        set(ref(db, `doctors/${doctorId}`), doctorEntry),
+        schedulesData && Object.keys(schedulesData).length > 0 
+          ? set(ref(db, `specialistSchedules/${doctorId}`), schedulesData)
+          : Promise.resolve()
+      ]);
+
+      return { doctorId, temporaryPassword };
+    } catch (error) {
+      console.error('Error creating doctor:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get all specialist doctors from your database
    */
   async getDoctors(): Promise<Doctor[]> {
@@ -31,7 +135,8 @@ export class RealDataService {
       }));
       
       // Filter to show only specialists
-      return allDoctors.filter(doctor => doctor.isSpecialist === true);
+      const specialists = allDoctors.filter(doctor => doctor.isSpecialist === true);
+      return specialists;
     } catch (error) {
       console.error('Error fetching doctors:', error);
       throw error;
@@ -110,10 +215,56 @@ export class RealDataService {
       if (!snapshot.exists()) return [];
       
       const feedback = snapshot.val();
-      return Object.keys(feedback).map(id => ({
-        id,
-        ...feedback[id]
-      }));
+      return Object.keys(feedback).map(id => {
+        const rawFeedback = feedback[id];
+        
+        // Transform the data to match UI expectations
+        return {
+          id,
+          // Patient info
+          patientName: `${rawFeedback.patientFirstName || ''} ${rawFeedback.patientLastName || ''}`.trim(),
+          patientInitials: `${(rawFeedback.patientFirstName || '').charAt(0)}${(rawFeedback.patientLastName || '').charAt(0)}`,
+          patientId: rawFeedback.patientId,
+          
+          // Doctor/Provider info
+          doctorName: `${rawFeedback.providerFirstName || ''} ${rawFeedback.providerLastName || ''}`.trim(),
+          doctorSpecialty: 'Specialist', // Default since we don't have specialty in feedback
+          providerId: rawFeedback.providerId,
+          
+          // Clinic info
+          clinic: rawFeedback.clinicName || rawFeedback.practiceLocationName || 'N/A',
+          clinicId: rawFeedback.clinicId,
+          
+          // Rating and comments
+          rating: rawFeedback.rating || 0,
+          comment: rawFeedback.comments || 'No comment provided',
+          
+          // Appointment info
+          appointmentDate: rawFeedback.appointmentDate,
+          appointmentTime: rawFeedback.appointmentTime,
+          appointmentType: rawFeedback.appointmentType,
+          clinicAppointmentId: rawFeedback.clinicAppointmentId,
+          
+          // Additional fields
+          referralId: rawFeedback.referralId,
+          sentiment: rawFeedback.sentiment || 'neutral',
+          submittedBy: rawFeedback.submittedBy,
+          timestamp: rawFeedback.timestamp,
+          
+          // UI-specific fields
+          status: 'pending', // Default status since it's not in the original data
+          date: rawFeedback.timestamp || rawFeedback.appointmentDate,
+          createdAt: rawFeedback.timestamp,
+          
+          // Tags for UI display (based on sentiment and rating)
+          tags: [
+            rawFeedback.sentiment === 'positive' ? 'Positive' : 
+            rawFeedback.sentiment === 'negative' ? 'Negative' : 'Neutral',
+            rawFeedback.rating >= 4 ? 'High Rating' : 
+            rawFeedback.rating >= 3 ? 'Average Rating' : 'Low Rating'
+          ].filter(Boolean)
+        };
+      });
     } catch (error) {
       console.error('Error fetching feedback:', error);
       throw error;
@@ -131,7 +282,56 @@ export class RealDataService {
       if (snapshot.exists()) {
         const data = snapshot.val();
         Object.keys(data).forEach(id => {
-          feedback.push({ id, ...data[id] });
+          const rawFeedback = data[id];
+          
+          // Transform the data to match UI expectations
+          const transformedFeedback = {
+            id,
+            // Patient info
+            patientName: `${rawFeedback.patientFirstName || ''} ${rawFeedback.patientLastName || ''}`.trim(),
+            patientInitials: `${(rawFeedback.patientFirstName || '').charAt(0)}${(rawFeedback.patientLastName || '').charAt(0)}`,
+            patientId: rawFeedback.patientId,
+            
+            // Doctor/Provider info
+            doctorName: `${rawFeedback.providerFirstName || ''} ${rawFeedback.providerLastName || ''}`.trim(),
+            doctorSpecialty: 'Specialist', // Default since we don't have specialty in feedback
+            providerId: rawFeedback.providerId,
+            
+            // Clinic info
+            clinic: rawFeedback.clinicName || rawFeedback.practiceLocationName || 'N/A',
+            clinicId: rawFeedback.clinicId,
+            
+            // Rating and comments
+            rating: rawFeedback.rating || 0,
+            comment: rawFeedback.comments || 'No comment provided',
+            
+            // Appointment info
+            appointmentDate: rawFeedback.appointmentDate,
+            appointmentTime: rawFeedback.appointmentTime,
+            appointmentType: rawFeedback.appointmentType,
+            clinicAppointmentId: rawFeedback.clinicAppointmentId,
+            
+            // Additional fields
+            referralId: rawFeedback.referralId,
+            sentiment: rawFeedback.sentiment || 'neutral',
+            submittedBy: rawFeedback.submittedBy,
+            timestamp: rawFeedback.timestamp,
+            
+            // UI-specific fields
+            status: 'pending', // Default status since it's not in the original data
+            date: rawFeedback.timestamp || rawFeedback.appointmentDate,
+            createdAt: rawFeedback.timestamp,
+            
+            // Tags for UI display (based on sentiment and rating)
+            tags: [
+              rawFeedback.sentiment === 'positive' ? 'Positive' : 
+              rawFeedback.sentiment === 'negative' ? 'Negative' : 'Neutral',
+              rawFeedback.rating >= 4 ? 'High Rating' : 
+              rawFeedback.rating >= 3 ? 'Average Rating' : 'Low Rating'
+            ].filter(Boolean)
+          };
+          
+          feedback.push(transformedFeedback);
         });
       }
       callback(feedback);
@@ -339,7 +539,24 @@ export class RealDataService {
       const snapshot = await get(ref(db, 'adminActivityLogs'));
       if (snapshot.exists()) {
         const activities = snapshot.val();
-        const activityList = Object.keys(activities).map(id => ({ id, ...activities[id] }));
+        const activityList = Object.keys(activities).map(id => {
+          const rawActivity = activities[id];
+          
+          // Transform the data to match UI expectations
+          return {
+            id,
+            action: rawActivity.action || 'System Activity',
+            targetDoctor: rawActivity.targetName || 'N/A',
+            targetDoctorId: rawActivity.targetId || '',
+            adminUser: rawActivity.adminEmail || 'System',
+            adminEmail: rawActivity.adminEmail || 'system@unihealth.ph',
+            description: rawActivity.details?.description || rawActivity.action || 'Activity performed',
+            category: rawActivity.targetType || 'system',
+            timestamp: rawActivity.timestamp,
+            ipAddress: rawActivity.details?.ipAddress || 'N/A',
+            details: rawActivity.details || {}
+          };
+        });
         
         // Sort by timestamp (newest first) and limit results
         return activityList
@@ -354,30 +571,45 @@ export class RealDataService {
         this.getFeedback()
       ]);
 
-      // Combine and sort by timestamp
+      // Combine and transform to match UI expectations
       const activities = [
         ...appointments.map(a => ({
           id: a.id,
-          type: 'appointment',
           action: `${a.type} appointment ${a.status}`,
-          user: `${a.patientFirstName} ${a.patientLastName}`,
+          targetDoctor: `${a.doctorFirstName || ''} ${a.doctorLastName || ''}`.trim() || 'N/A',
+          targetDoctorId: a.doctorId || '',
+          adminUser: `${a.bookedByUserFirstName} ${a.bookedByUserLastName}`,
+          adminEmail: 'system@unihealth.ph',
+          description: `Appointment ${a.status} for ${a.patientFirstName} ${a.patientLastName}`,
+          category: 'appointment',
           timestamp: a.createdAt,
+          ipAddress: 'N/A',
           details: a
         })),
         ...referrals.map(r => ({
           id: r.id,
-          type: 'referral',
           action: `Referral ${r.status}`,
-          user: `${r.patientFirstName} ${r.patientLastName}`,
+          targetDoctor: `${r.assignedSpecialistFirstName} ${r.assignedSpecialistLastName}`,
+          targetDoctorId: r.assignedSpecialistId,
+          adminUser: `${r.referringGeneralistFirstName} ${r.referringGeneralistLastName}`,
+          adminEmail: 'system@unihealth.ph',
+          description: `Referral ${r.status} for ${r.patientFirstName} ${r.patientLastName}`,
+          category: 'referral',
           timestamp: r.referralTimestamp,
+          ipAddress: 'N/A',
           details: r
         })),
         ...feedback.map(f => ({
           id: f.id,
-          type: 'feedback',
           action: `Feedback submitted (${f.rating}★)`,
-          user: `${f.patientFirstName} ${f.patientLastName}`,
+          targetDoctor: f.doctorName,
+          targetDoctorId: f.providerId,
+          adminUser: `${f.patientFirstName} ${f.patientLastName}`,
+          adminEmail: 'patient@unihealth.ph',
+          description: `Feedback submitted with ${f.rating} star rating`,
+          category: 'feedback',
           timestamp: f.timestamp,
+          ipAddress: 'N/A',
           details: f
         }))
       ];
