@@ -26,6 +26,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 
+
 export default function DashboardPage() {
   // ✅ OPTIMIZED - Using React Query hooks with caching
   const { 
@@ -189,6 +190,8 @@ export default function DashboardPage() {
             </Card>
           ))}
         </div>
+
+
         <div className="grid gap-4 md:grid-cols-2">
           {/* Recent Activity */}
           <Card>

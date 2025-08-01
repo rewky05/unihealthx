@@ -10,6 +10,7 @@ import { UserRoleManagement } from '@/components/settings/user-role-management';
 import { MedicalServicesCatalogs } from '@/components/settings/medical-services-catalogs';
 import { DataAudit } from '@/components/settings/data-audit';
 import { SecurityManagement } from '@/components/settings/security-management';
+import { SessionManagement } from '@/components/settings/session-management';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Settings as SettingsIcon,
@@ -17,7 +18,8 @@ import {
   Building,
   FileText,
   Database,
-  Shield
+  Shield,
+  Monitor
 } from 'lucide-react';
 
 const settingsCategories = [
@@ -40,6 +42,13 @@ const settingsCategories = [
     label: 'Security Management',
     icon: Shield,
     description: 'Monitor and manage account lockouts',
+    allowedRoles: ['superadmin']
+  },
+  {
+    id: 'sessions',
+    label: 'Session Management',
+    icon: Monitor,
+    description: 'Monitor and manage active sessions',
     allowedRoles: ['superadmin']
   },
   {
@@ -115,6 +124,8 @@ export default function SettingsPage() {
         return <UserRoleManagement onUnsavedChanges={setHasUnsavedChanges} />;
       case 'security':
         return <SecurityManagement />;
+      case 'sessions':
+        return <SessionManagement />;
       case 'services':
         return <MedicalServicesCatalogs onUnsavedChanges={setHasUnsavedChanges} />;
       case 'data':

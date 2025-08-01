@@ -12,6 +12,8 @@ import { ref, set, get } from 'firebase/database';
 import { auth, db } from '@/lib/firebase/config';
 import { securityService } from '@/lib/services/security.service';
 import { captchaService, type CaptchaSolution } from '@/lib/services/captcha.service';
+import { sessionService } from '@/lib/services/session.service';
+import { SecureSessionStorage, SessionActivityTracker } from '@/lib/utils/session-storage';
 
 export interface AdminUser {
   uid: string;
@@ -78,16 +80,84 @@ export class AuthService {
       // Update last login time
       await this.updateLastLogin(user.uid);
 
-      // Skip admin user check - use Firebase user directly
-      const adminUser = {
-        uid: user.uid,
-        email: user.email!,
-        displayName: user.displayName || 'Admin User',
-        role: 'superadmin',
-        permissions: this.getRolePermissions('superadmin'),
-        isActive: true,
-        createdAt: Date.now()
-      } as AdminUser;
+      // Get admin user details from database
+      let adminUser: AdminUser;
+      
+      try {
+        // Try to get user from database first
+        const userRef = ref(db, `users/${user.uid}`);
+        const snapshot = await get(userRef);
+        
+        if (snapshot.exists()) {
+          const userData = snapshot.val();
+          adminUser = {
+            uid: user.uid,
+            email: user.email!,
+            displayName: userData.displayName || user.displayName || 'Admin User',
+            role: userData.role || 'admin',
+            permissions: this.getRolePermissions(userData.role || 'admin'),
+            isActive: userData.isActive !== false,
+            createdAt: userData.createdAt || Date.now(),
+            lastLoginAt: Date.now()
+          };
+        } else {
+          // Fallback for users not in database
+          adminUser = {
+            uid: user.uid,
+            email: user.email!,
+            displayName: user.displayName || 'Admin User',
+            role: 'admin', // Default to admin role
+            permissions: this.getRolePermissions('admin'),
+            isActive: true,
+            createdAt: Date.now(),
+            lastLoginAt: Date.now()
+          };
+        }
+      } catch (error) {
+        console.error('Error fetching user details:', error);
+        // Fallback for database errors
+        adminUser = {
+          uid: user.uid,
+          email: user.email!,
+          displayName: user.displayName || 'Admin User',
+          role: 'admin', // Default to admin role
+          permissions: this.getRolePermissions('admin'),
+          isActive: true,
+          createdAt: Date.now(),
+          lastLoginAt: Date.now()
+        };
+      }
+
+      // Create session for the user
+      try {
+        console.log('Creating session for user:', user.email);
+        console.log('Firebase user email:', user.email);
+        console.log('Admin user email:', adminUser.email);
+        console.log('Admin user role:', adminUser.role);
+        const sessionData = await sessionService.createSession(
+          user.uid,
+          user.email!,
+          adminUser.role,
+          this.getClientIP(),
+          navigator.userAgent
+        );
+
+        // Store session securely on client
+        SecureSessionStorage.storeSession(sessionData);
+        console.log('Session stored in client storage');
+
+        // Start activity tracking
+        SessionActivityTracker.startTracking();
+        console.log('Activity tracking started');
+
+        console.log('Session created for user:', user.email);
+        
+        // Trigger a small delay to ensure session is properly stored
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (sessionError) {
+        console.error('Error creating session:', sessionError);
+        // Continue with login even if session creation fails
+      }
       
       console.log('Returning admin user:', adminUser);
       return adminUser;
@@ -177,8 +247,25 @@ export class AuthService {
    */
   async signOut(): Promise<void> {
     try {
+      // Destroy session
+      const sessionId = SecureSessionStorage.getSessionId();
+      if (sessionId) {
+        await sessionService.destroySession(sessionId);
+      }
+
+      // Stop activity tracking
+      SessionActivityTracker.stopTracking();
+
+      // Clear session storage
+      SecureSessionStorage.clearSession();
+
+      // Firebase sign out
       await signOut(auth);
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userEmail');
+      console.log('User signed out successfully');
     } catch (error: any) {
+      console.error('Sign out error:', error);
       throw new Error('Failed to sign out');
     }
   }
@@ -347,6 +434,16 @@ export class AuthService {
     };
 
     return errorMessages[errorCode] || 'An authentication error occurred';
+  }
+
+  /**
+   * Get client IP address (simplified for demo)
+   * In production, this should get the real IP from headers
+   */
+  private getClientIP(): string {
+    // In a real application, you would get this from request headers
+    // For demo purposes, return a placeholder
+    return '127.0.0.1';
   }
 
   /**

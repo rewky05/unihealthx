@@ -68,8 +68,11 @@ export default function LoginPage() {
       setError('');
 
       try {
+        console.log('Starting Firebase authentication...');
         // Only now proceed with Firebase authentication
         const adminUser = await authService.signIn(email, password);
+        
+        console.log('Authentication successful, adminUser:', adminUser);
         
         // Store user info in localStorage for UI purposes
         console.log('Storing user info:', {
@@ -81,6 +84,7 @@ export default function LoginPage() {
         localStorage.setItem('userEmail', adminUser.email);
         localStorage.setItem('userDisplayName', adminUser.displayName);
         
+        console.log('Navigating to dashboard...');
         // Navigate to dashboard
         router.push('/dashboard');
       } catch (error: any) {
