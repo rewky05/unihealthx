@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Eye, EyeOff, Shield, Heart, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, Shield, Heart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase/config';
-import { AUTH_CONFIG, isSuperadminEmail, validateSuperadminCredentials } from '@/lib/config/auth';
+import { authService } from '@/lib/auth/auth.service';
+import { HealthcareCaptcha } from '@/components/ui/healthcare-captcha';
+import { LockoutTimer } from '@/components/ui/lockout-timer';
+import { securityService } from '@/lib/services/security.service';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -18,101 +19,103 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [captchaAnswer, setCaptchaAnswer] = useState('');
-  const [captchaQuestion, setCaptchaQuestion] = useState('');
-  const [captchaResult, setCaptchaResult] = useState(0);
-  const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [captchaCompleted, setCaptchaCompleted] = useState(false);
+  const [lockoutRecord, setLockoutRecord] = useState<any>(null);
   const router = useRouter();
 
-  // Generate captcha question
+  // Check for account lockout when email changes
   useEffect(() => {
-    generateCaptcha();
-  }, []);
+    const checkLockout = async () => {
+      if (email) {
+        try {
+          const { locked, record } = await securityService.isAccountLocked(email);
+          if (locked && record) {
+            setLockoutRecord(record);
+          } else {
+            setLockoutRecord(null);
+          }
+        } catch (error) {
+          console.error('Error checking lockout status:', error);
+        }
+      }
+    };
 
-  const generateCaptcha = () => {
-    const { MIN_NUMBERS, MAX_NUMBERS, OPERATORS } = AUTH_CONFIG.SECURITY.CAPTCHA;
-    const num1 = Math.floor(Math.random() * (MAX_NUMBERS - MIN_NUMBERS + 1)) + MIN_NUMBERS;
-    const num2 = Math.floor(Math.random() * (MAX_NUMBERS - MIN_NUMBERS + 1)) + MIN_NUMBERS;
-    const operator = OPERATORS[Math.floor(Math.random() * OPERATORS.length)];
-    
-    let result;
-    switch (operator) {
-      case '+':
-        result = num1 + num2;
-        break;
-      case '-':
-        result = num1 - num2;
-        break;
-      case '×':
-        result = num1 * num2;
-        break;
-      default:
-        result = num1 + num2;
-    }
-    
-    setCaptchaQuestion(`${num1} ${operator} ${num2} = ?`);
-    setCaptchaResult(result);
-    setCaptchaAnswer('');
-  };
+    const timeoutId = setTimeout(checkLockout, 500); // Debounce
+    return () => clearTimeout(timeoutId);
+  }, [email]);
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError('');
-
-    // Check if it's superadmin login
-    if (isSuperadminEmail(email)) {
-      setIsSuperadmin(true);
-      
-      // Validate captcha for superadmin
-      if (parseInt(captchaAnswer) !== captchaResult) {
-        setError('Incorrect captcha answer. Please try again.');
-        setIsLoading(false);
-        generateCaptcha();
-        return;
-      }
-
-      // Validate superadmin credentials
-      if (!validateSuperadminCredentials(email, password)) {
-        setError('Invalid superadmin credentials.');
-        setIsLoading(false);
-        generateCaptcha();
-        return;
-      }
-
-      // Superadmin login successful
-      console.log('Superadmin login successful:', { email, role: AUTH_CONFIG.ROLES.SUPERADMIN });
-      localStorage.setItem('userRole', AUTH_CONFIG.ROLES.SUPERADMIN);
-      localStorage.setItem('userEmail', email);
-      
-      // Force a small delay and then navigate
-      setTimeout(() => {
-        console.log('Navigating to dashboard...');
-        // Force a page reload to ensure auth state is updated
-        window.location.href = '/dashboard';
-      }, 200);
+    
+    // Basic validation
+    if (!email || !password) {
+      setError('Please enter both email and password.');
       return;
     }
 
-    // Regular Firebase authentication for other users
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      localStorage.setItem('userRole', AUTH_CONFIG.ROLES.ADMIN);
-      localStorage.setItem('userEmail', email);
-      router.push('/dashboard');
-    } catch (error: any) {
-      console.error('Login error:', error);
-      setError(error.message || 'Invalid email or password. Please try again.');
-    } finally {
-      setIsLoading(false);
+    // Show captcha first
+    setShowCaptcha(true);
+  };
+
+  const handleCaptchaComplete = async (isValid: boolean) => {
+    if (isValid) {
+      setCaptchaCompleted(true);
+      setShowCaptcha(false);
+      setIsLoading(true);
+      setError('');
+
+      try {
+        // Only now proceed with Firebase authentication
+        const adminUser = await authService.signIn(email, password);
+        
+        // Store user info in localStorage for UI purposes
+        console.log('Storing user info:', {
+          role: adminUser.role,
+          email: adminUser.email,
+          displayName: adminUser.displayName
+        });
+        localStorage.setItem('userRole', adminUser.role);
+        localStorage.setItem('userEmail', adminUser.email);
+        localStorage.setItem('userDisplayName', adminUser.displayName);
+        
+        // Navigate to dashboard
+        router.push('/dashboard');
+      } catch (error: any) {
+        console.error('Login error:', error);
+        setError(error.message || 'Invalid email or password. Please try again.');
+        setCaptchaCompleted(false);
+        
+        // Check for lockout after failed attempt
+        try {
+          const { locked, record } = await securityService.isAccountLocked(email);
+          if (locked && record) {
+            setLockoutRecord(record);
+          }
+        } catch (lockoutError) {
+          console.error('Error checking lockout after failed attempt:', lockoutError);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setError('Security verification failed. Please try again.');
     }
   };
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const emailValue = e.target.value;
-    setEmail(emailValue);
-    setIsSuperadmin(isSuperadminEmail(emailValue));
+  const handleCaptchaReset = () => {
+    setCaptchaCompleted(false);
+    setError('');
   };
+
+  const handleLockoutExpired = () => {
+    setLockoutRecord(null);
+    setError('');
+  };
+
+
 
   return (
     <div className="min-h-screen healthcare-gradient flex items-center justify-center p-4">
@@ -157,7 +160,7 @@ export default function LoginPage() {
                   type="email"
                   placeholder="admin@unihealth.ph"
                   value={email}
-                  onChange={handleEmailChange}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                   className="h-11"
                 />
@@ -191,38 +194,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Captcha for superadmin */}
-              {isSuperadmin && (
-                <div className="space-y-2">
-                  <Label htmlFor="captcha">Security Verification</Label>
-                  <div className="flex items-center space-x-2">
-                    <div className="flex-1 p-3 bg-muted rounded-lg text-center font-mono text-lg">
-                      {captchaQuestion}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={generateCaptcha}
-                      className="flex-shrink-0"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <Input
-                    id="captcha"
-                    type="number"
-                    placeholder="Enter the answer"
-                    value={captchaAnswer}
-                    onChange={(e) => setCaptchaAnswer(e.target.value)}
-                    required
-                    className="h-11"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Please solve the math problem to verify you're human
-                  </p>
-                </div>
-              )}
+
 
               <Button
                 type="submit"
@@ -240,20 +212,18 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Superadmin indicator */}
-            {isSuperadmin && (
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <Shield className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm text-blue-700 font-medium">
-                    Superadmin Access Detected
-                  </span>
-                </div>
-                <p className="text-xs text-blue-600 mt-1">
-                  Enhanced security verification required
-                </p>
+            {/* Security Notice */}
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Shield className="h-4 w-4 text-blue-600" />
+                <span className="text-sm text-blue-700 font-medium">
+                  Enhanced Security
+                </span>
               </div>
-            )}
+              <p className="text-xs text-blue-600 mt-1">
+                Multiple failed attempts will temporarily lock your account
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -263,6 +233,24 @@ export default function LoginPage() {
           <p>Unauthorized access attempts will be logged and reported</p>
         </div>
       </div>
+
+      {/* Healthcare Captcha */}
+      {showCaptcha && (
+        <HealthcareCaptcha
+          onComplete={handleCaptchaComplete}
+          onReset={handleCaptchaReset}
+        />
+      )}
+
+      {/* Lockout Timer */}
+      {lockoutRecord && lockoutRecord.lockoutUntil && (
+        <LockoutTimer
+          lockoutUntil={lockoutRecord.lockoutUntil}
+          onExpired={handleLockoutExpired}
+        />
+      )}
+
+
     </div>
   );
 }

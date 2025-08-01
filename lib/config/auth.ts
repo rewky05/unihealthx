@@ -1,11 +1,5 @@
 // Authentication Configuration
 export const AUTH_CONFIG = {
-  // Superadmin credentials (static for easy transfer)
-  SUPERADMIN: {
-    EMAIL: 'superadmin@unihealth.ph',
-    PASSWORD: 'UniHealth2024!',
-  },
-  
   // Security settings
   SECURITY: {
     // Captcha settings
@@ -33,11 +27,12 @@ export const AUTH_CONFIG = {
   ROLES: {
     SUPERADMIN: 'superadmin',
     ADMIN: 'admin',
+    MODERATOR: 'moderator',
   },
   
   // Permissions
   PERMISSIONS: {
-    SUPERADMIN: [
+    superadmin: [
       'doctors:read',
       'doctors:write',
       'doctors:delete',
@@ -56,8 +51,12 @@ export const AUTH_CONFIG = {
       'users:read',
       'users:write',
       'users:delete',
+      'admin:read',
+      'admin:write',
+      'admin:delete',
+      'system:settings',
     ],
-    ADMIN: [
+    admin: [
       'doctors:read',
       'doctors:write',
       'clinics:read',
@@ -69,18 +68,17 @@ export const AUTH_CONFIG = {
       'activity:read',
       'settings:read',
     ],
+    moderator: [
+      'doctors:read',
+      'feedback:read',
+      'feedback:write',
+      'schedules:read',
+      'clinics:read',
+    ],
   },
 } as const;
 
 // Helper functions
-export const isSuperadminEmail = (email: string): boolean => {
-  return email === AUTH_CONFIG.SUPERADMIN.EMAIL;
-};
-
-export const validateSuperadminCredentials = (email: string, password: string): boolean => {
-  return email === AUTH_CONFIG.SUPERADMIN.EMAIL && password === AUTH_CONFIG.SUPERADMIN.PASSWORD;
-};
-
 export const getPermissionsForRole = (role: string): string[] => {
   return [...(AUTH_CONFIG.PERMISSIONS[role as keyof typeof AUTH_CONFIG.PERMISSIONS] || [])];
 }; 

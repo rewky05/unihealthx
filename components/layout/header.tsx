@@ -74,7 +74,7 @@ export function Header({ title, onMenuClick }: HeaderProps) {
         {isSuperadmin() && (
           <Badge variant="secondary" className="bg-blue-100 text-blue-800">
             <Shield className="h-3 w-3 mr-1" />
-            Superadmin
+            Super Admin
           </Badge>
         )}
       </div>

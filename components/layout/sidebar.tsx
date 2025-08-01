@@ -70,8 +70,9 @@ export function Sidebar() {
   };
 
   const getUserEmail = () => {
+    // Get email from localStorage for superadmin, otherwise use user object
     if (isSuperadmin()) {
-      return "superadmin@unihealth.ph";
+      return localStorage.getItem('userEmail') || "admin@unihealth.ph";
     }
     return user?.email || "admin@unihealth.ph";
   };

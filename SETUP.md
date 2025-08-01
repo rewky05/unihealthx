@@ -53,33 +53,28 @@ Open [http://localhost:3000](http://localhost:3000) 🎉
 
 ## 🔐 First Admin User Setup
 
-Since you need an admin user to login, run this in your browser console on the login page:
+### Step 1: Create User in Firebase Authentication
+1. Go to [Firebase Console](https://console.firebase.google.com/project/odyssey-test-db)
+2. Navigate to **Authentication** → **Users**
+3. Click **"Add User"**
+4. Enter the admin credentials:
+   - **Email**: `admin@unihealth.ph`
+   - **Password**: `SecurePassword123!` (or your preferred strong password)
+5. Click **"Add user"**
 
-```javascript
-// Create first admin user (run this once)
-import { authService } from '@/lib/auth/auth.service';
-
-await authService.createAdminUser(
-  'admin@unihealth.com',
-  'admin123456',
-  'System Administrator', 
-  'super_admin'
-);
-```
-
-**Or** manually add to Firebase Realtime Database:
-
-1. Go to Firebase Console → Realtime Database
-2. Add this structure:
+### Step 2: Add Admin User Record to Database
+1. Copy the **User UID** from the created user
+2. Go to **Realtime Database**
+3. Add this structure under `admin-users/{uid}`:
 
 ```json
 {
   "admin-users": {
     "your-firebase-uid-here": {
       "uid": "your-firebase-uid-here",
-      "email": "admin@unihealth.com",
+      "email": "admin@unihealth.ph",
       "displayName": "System Administrator",
-      "role": "super_admin",
+             "role": "superadmin",
       "permissions": [
         "doctors:read", "doctors:write", "doctors:delete",
         "feedback:read", "feedback:write", "feedback:delete",
@@ -94,6 +89,14 @@ await authService.createAdminUser(
   }
 }
 ```
+
+### ⚠️ Security Best Practices
+- ✅ All passwords are hashed by Firebase Authentication
+- ✅ No hardcoded credentials in the codebase
+- ✅ Change the default password after first login
+- ✅ Enable 2FA for additional security
+- ✅ Use strong, unique passwords
+- ✅ Regularly rotate admin credentials
 
 ## 📊 Database Structure
 
@@ -210,8 +213,8 @@ vercel
       ".write": "auth != null"
     },
     "admin-users": {
-      ".read": "auth != null && root.child('admin-users').child(auth.uid).child('role').val() == 'super_admin'",
-      ".write": "auth != null && root.child('admin-users').child(auth.uid).child('role').val() == 'super_admin'"
+          ".read": "auth != null && root.child('admin-users').child(auth.uid).child('role').val() == 'superadmin'",
+    ".write": "auth != null && root.child('admin-users').child(auth.uid).child('role').val() == 'superadmin'"
     }
   }
 }

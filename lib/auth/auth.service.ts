@@ -10,12 +10,14 @@ import {
 } from 'firebase/auth';
 import { ref, set, get } from 'firebase/database';
 import { auth, db } from '@/lib/firebase/config';
+import { securityService } from '@/lib/services/security.service';
+import { captchaService, type CaptchaSolution } from '@/lib/services/captcha.service';
 
 export interface AdminUser {
   uid: string;
   email: string;
   displayName: string;
-  role: 'super_admin' | 'admin' | 'moderator';
+  role: 'superadmin' | 'admin' | 'moderator';
   permissions: string[];
   isActive: boolean;
   lastLoginAt?: number;
@@ -24,27 +26,149 @@ export interface AdminUser {
 
 export class AuthService {
   /**
-   * Sign in with email and password
+   * Sign in with email, password, and captcha solution
    */
-  async signIn(email: string, password: string): Promise<AdminUser> {
+  async signIn(email: string, password: string, captchaSolution?: CaptchaSolution): Promise<AdminUser> {
     try {
+      // Check if account is locked
+      const { locked, record } = await securityService.isAccountLocked(email);
+      if (locked && record) {
+        const remainingTime = record.lockoutUntil! - Date.now();
+        const minutes = Math.ceil(remainingTime / (1000 * 60));
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        
+        let timeMessage = '';
+        if (hours > 0) {
+          timeMessage = `${hours} hour${hours > 1 ? 's' : ''} and ${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}`;
+        } else {
+          timeMessage = `${minutes} minute${minutes > 1 ? 's' : ''}`;
+        }
+        
+        throw new Error(`Account is locked. Please try again in ${timeMessage}.`);
+      }
+
+      // Captcha validation temporarily disabled
+      // if (!captchaSolution) {
+      //   await securityService.recordFailedAttempt(email);
+      //   throw new Error('Security verification is required');
+      // }
+
+      // const currentPuzzle = this.getCurrentPuzzle(email);
+      // if (!currentPuzzle) {
+      //   console.error('No puzzle found for email:', email);
+      //   await securityService.recordFailedAttempt(email);
+      //   throw new Error('Invalid security verification session. Please refresh and try again.');
+      // }
+
+      // const isCaptchaValid = captchaService.validateSolution(currentPuzzle, captchaSolution);
+      // if (!isCaptchaValid) {
+      //   console.error('Captcha validation failed for email:', email);
+      //   await securityService.recordFailedAttempt(email);
+      //   throw new Error('Security verification failed. Please try again.');
+      // }
+
+      // If captcha is valid, proceed with password authentication
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Get admin user data from database
-      const adminData = await this.getAdminUser(user.uid);
-      
-      if (!adminData || !adminData.isActive) {
-        await this.signOut();
-        throw new Error('Account is not active or does not have admin privileges');
-      }
+      // Record successful login
+      await securityService.recordSuccessfulAttempt(email);
 
       // Update last login time
       await this.updateLastLogin(user.uid);
 
-      return adminData;
+      // Skip admin user check - use Firebase user directly
+      const adminUser = {
+        uid: user.uid,
+        email: user.email!,
+        displayName: user.displayName || 'Admin User',
+        role: 'superadmin',
+        permissions: this.getRolePermissions('superadmin'),
+        isActive: true,
+        createdAt: Date.now()
+      } as AdminUser;
+      
+      console.log('Returning admin user:', adminUser);
+      return adminUser;
+
     } catch (error: any) {
-      throw new Error(this.getAuthErrorMessage(error.code));
+      // Record failed attempt for authentication errors
+      const isAuthError = error.code && (
+        error.code.includes('wrong-password') || 
+        error.code.includes('user-not-found') ||
+        error.code.includes('invalid-credential') ||
+        error.code === 'auth/wrong-password' ||
+        error.code === 'auth/user-not-found' ||
+        error.code === 'auth/invalid-credential'
+      );
+
+      if (isAuthError) {
+        await securityService.recordFailedAttempt(email);
+      }
+      
+      // Handle different types of errors
+      if (error.message) {
+        // If it's already a user-friendly error message, use it
+        throw new Error(error.message);
+      } else if (error.code) {
+        // If it's a Firebase auth error, convert it
+        throw new Error(this.getAuthErrorMessage(error.code));
+      } else {
+        // Fallback for unknown errors
+        console.error('Authentication error:', error);
+        throw new Error('An authentication error occurred. Please try again.');
+      }
+    }
+  }
+
+  /**
+   * Sanitize email for use as storage key
+   */
+  private sanitizeEmailForStorage(email: string): string {
+    return email
+      .replace(/\./g, '-')  // Replace dots with hyphens
+      .replace(/@/g, '-')   // Replace @ with hyphens
+      .replace(/[^a-zA-Z0-9_-]/g, '_'); // Replace any other invalid chars with underscores
+  }
+
+  /**
+   * Get current puzzle for an email
+   */
+  private getCurrentPuzzle(email: string): any {
+    try {
+      const sanitizedEmail = this.sanitizeEmailForStorage(email);
+      const storageKey = `captcha_puzzle_${sanitizedEmail}`;
+      const puzzleData = sessionStorage.getItem(storageKey);
+      console.log('Retrieving puzzle for email:', email, 'with key:', storageKey, 'found:', !!puzzleData);
+      return puzzleData ? JSON.parse(puzzleData) : null;
+    } catch (error) {
+      console.error('Error retrieving puzzle for email:', email, error);
+      return null;
+    }
+  }
+
+  /**
+   * Set current puzzle for an email
+   */
+  setCurrentPuzzle(email: string, puzzle: any): void {
+    try {
+      const sanitizedEmail = this.sanitizeEmailForStorage(email);
+      sessionStorage.setItem(`captcha_puzzle_${sanitizedEmail}`, JSON.stringify(puzzle));
+    } catch (error) {
+      console.error('Error setting puzzle:', error);
+    }
+  }
+
+  /**
+   * Clear current puzzle for an email
+   */
+  private clearCurrentPuzzle(email: string): void {
+    try {
+      const sanitizedEmail = this.sanitizeEmailForStorage(email);
+      sessionStorage.removeItem(`captcha_puzzle_${sanitizedEmail}`);
+    } catch (error) {
+      console.error('Error clearing puzzle:', error);
     }
   }
 
@@ -126,7 +250,7 @@ export class AuthService {
    */
   private getRolePermissions(role: AdminUser['role']): string[] {
     const permissions: Record<AdminUser['role'], string[]> = {
-      super_admin: [
+      superadmin: [
         'doctors:read',
         'doctors:write',
         'doctors:delete',

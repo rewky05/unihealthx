@@ -9,6 +9,8 @@ import { GeneralSettings } from '@/components/settings/general-settings';
 import { UserRoleManagement } from '@/components/settings/user-role-management';
 import { MedicalServicesCatalogs } from '@/components/settings/medical-services-catalogs';
 import { DataAudit } from '@/components/settings/data-audit';
+import { SecurityManagement } from '@/components/settings/security-management';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Settings as SettingsIcon,
   Users,
@@ -17,9 +19,6 @@ import {
   Database,
   Shield
 } from 'lucide-react';
-
-// Mock user role for demonstration
-const currentUserRole = 'superadmin'; // Can be 'superadmin', 'admin', 'clinic_admin'
 
 const settingsCategories = [
   {
@@ -36,7 +35,13 @@ const settingsCategories = [
     description: 'Manage admin users and permissions',
     allowedRoles: ['superadmin']
   },
-
+  {
+    id: 'security',
+    label: 'Security Management',
+    icon: Shield,
+    description: 'Monitor and manage account lockouts',
+    allowedRoles: ['superadmin']
+  },
   {
     id: 'services',
     label: 'Medical Services & Catalogs',
@@ -56,10 +61,40 @@ const settingsCategories = [
 export default function SettingsPage() {
   const [activeCategory, setActiveCategory] = useState('general');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const { user, isSuperadmin, isAdmin, loading } = useAuth();
+
+  // Determine current user role
+  const currentUserRole = user?.role || 'admin';
 
   const filteredCategories = settingsCategories.filter(category =>
     category.allowedRoles.includes(currentUserRole)
   );
+
+  // Show loading state while authentication is being determined
+  if (loading) {
+    return (
+      <DashboardLayout title="">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-2">Loading settings...</span>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Redirect if no user is authenticated
+  if (!user) {
+    return (
+      <DashboardLayout title="">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
+            <p className="text-muted-foreground">Please log in to access settings.</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const handleCategoryChange = (categoryId: string) => {
     if (hasUnsavedChanges) {
@@ -78,7 +113,8 @@ export default function SettingsPage() {
         return <GeneralSettings onUnsavedChanges={setHasUnsavedChanges} />;
       case 'users':
         return <UserRoleManagement onUnsavedChanges={setHasUnsavedChanges} />;
-
+      case 'security':
+        return <SecurityManagement />;
       case 'services':
         return <MedicalServicesCatalogs onUnsavedChanges={setHasUnsavedChanges} />;
       case 'data':

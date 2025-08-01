@@ -77,7 +77,7 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
             uid,
             ...usersData[uid]
           }))
-          .filter((user: any) => user.isActive === true); // Only show active users
+          .filter((user: any) => user.isActive === true || user.isActive === false); 
         setUsers(usersList);
       } else {
         setUsers([]);
