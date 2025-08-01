@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bell, Settings, LogOut, User, Shield, Menu } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 interface HeaderProps {
   title?: string;
@@ -24,6 +25,7 @@ interface HeaderProps {
 export function Header({ title, onMenuClick }: HeaderProps) {
   const { user, signOut, isSuperadmin } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutDialog, setLogoutDialog] = useState(false);
 
   // Get user display information
   const getUserDisplayName = () => {
@@ -59,7 +61,8 @@ export function Header({ title, onMenuClick }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 lg:px-6">
+    <>
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 lg:px-6">
       <Button
         variant="ghost"
         size="icon"
@@ -122,13 +125,27 @@ export function Header({ title, onMenuClick }: HeaderProps) {
               <span>Settings</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+            <DropdownMenuItem onClick={() => setLogoutDialog(true)} disabled={isLoggingOut}>
               <LogOut className="mr-2 h-4 w-4" />
-              <span>{isLoggingOut ? 'Signing out...' : 'Sign out'}</span>
+              <span>Sign out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </header>
+
+    {/* Logout Confirmation Dialog */}
+    <ConfirmationDialog
+      open={logoutDialog}
+      onOpenChange={setLogoutDialog}
+      title="Confirm Sign Out"
+      description="Are you sure you want to sign out? You will need to log in again to access the system."
+      confirmText="Sign Out"
+      cancelText="Cancel"
+      variant="default"
+      loading={isLoggingOut}
+      onConfirm={handleLogout}
+    />
+    </>
   );
 }

@@ -21,6 +21,7 @@ import { sessionService, type SessionData } from '@/lib/services/session.service
 import { SecureSessionStorage } from '@/lib/utils/session-storage';
 import { ref, get } from 'firebase/database';
 import { db } from '@/lib/firebase/config';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 export function SessionManagement() {
   const [sessions, setSessions] = useState<SessionData[]>([]);
@@ -33,6 +34,12 @@ export function SessionManagement() {
     averageSessionsPerUser: 0,
   });
   const [userRoles, setUserRoles] = useState<{ [userId: string]: string }>({});
+  
+  // Confirmation dialog states
+  const [logoutAllDialog, setLogoutAllDialog] = useState(false);
+  const [logoutSessionDialog, setLogoutSessionDialog] = useState(false);
+  const [logoutSessionId, setLogoutSessionId] = useState<string>('');
+  const [logoutLoading, setLogoutLoading] = useState(false);
 
   const loadSessions = async () => {
     try {
@@ -205,32 +212,87 @@ export function SessionManagement() {
     }
   };
 
-  if (loading) {
+    if (loading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <span className="ml-2">Loading session data...</span>
-          </div>
-        </CardContent>
-      </Card>
+      <>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <span className="ml-2">Loading session data...</span>
+                       </div>
+          </CardContent>
+        </Card>
+
+        {/* Confirmation Dialogs */}
+        <ConfirmationDialog
+          open={logoutAllDialog}
+          onOpenChange={setLogoutAllDialog}
+          title="Logout All Sessions"
+          description="This will force logout all active sessions across all users. This action cannot be undone."
+          confirmText="Logout All Sessions"
+          cancelText="Cancel"
+          variant="destructive"
+          loading={logoutLoading}
+          onConfirm={async () => {
+            setLogoutLoading(true);
+            try {
+              console.log('Logout all sessions for all users');
+              const allSessions = await sessionService.getAllActiveSessions();
+              console.log(`Found ${allSessions.length} total sessions to logout`);
+              for (const session of allSessions) {
+                await sessionService.destroySession(session.sessionId);
+              }
+              await handleRefresh();
+            } catch (error) {
+              console.error('Error logging out all sessions:', error);
+            } finally {
+              setLogoutLoading(false);
+            }
+          }}
+        />
+
+        <ConfirmationDialog
+          open={logoutSessionDialog}
+          onOpenChange={setLogoutSessionDialog}
+          title="Logout Session"
+          description="This will force logout the selected session. The user will be immediately signed out."
+          confirmText="Logout Session"
+          cancelText="Cancel"
+          variant="destructive"
+          loading={logoutLoading}
+          onConfirm={async () => {
+            setLogoutLoading(true);
+            try {
+              console.log('Force logging out session:', logoutSessionId);
+              await sessionService.destroySession(logoutSessionId);
+              console.log('Session destroyed, reloading sessions...');
+              await handleRefresh();
+            } catch (error) {
+              console.error('Error logging out session:', error);
+            } finally {
+              setLogoutLoading(false);
+            }
+          }}
+        />
+      </>
     );
   }
 
-  return (
-    <Card className="card-shadow">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="space-y-1.5">
-            <CardTitle className="flex items-center">
-              <Monitor className="h-5 w-5 mr-2" />
-              Session Management
-            </CardTitle>
-            <CardDescription>
-              Monitor and manage active user sessions across the platform
-            </CardDescription>
-          </div>
+    return (
+    <>
+      <Card className="card-shadow">
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="space-y-1.5">
+              <CardTitle className="flex items-center">
+                <Monitor className="h-5 w-5 mr-2" />
+                Session Management
+              </CardTitle>
+              <CardDescription>
+                Monitor and manage active user sessions across the platform
+              </CardDescription>
+            </div>
                                                                                                                                                                                <div className="flex space-x-2">
                <Button
                  variant="outline"
@@ -244,15 +306,7 @@ export function SessionManagement() {
                <Button
                  variant="outline"
                  size="sm"
-                 onClick={async () => {
-                   console.log('Logout all sessions for all users');
-                   const allSessions = await sessionService.getAllActiveSessions();
-                   console.log(`Found ${allSessions.length} total sessions to logout`);
-                   for (const session of allSessions) {
-                     await sessionService.destroySession(session.sessionId);
-                   }
-                   await handleRefresh();
-                 }}
+                 onClick={() => setLogoutAllDialog(true)}
                  disabled={refreshing}
                >
                  <AlertTriangle className="h-4 w-4 mr-2" />
@@ -380,7 +434,10 @@ export function SessionManagement() {
                          <Button
                            variant="outline"
                            size="sm"
-                           onClick={() => handleForceLogout(session.sessionId)}
+                           onClick={() => {
+                             setLogoutSessionId(session.sessionId);
+                             setLogoutSessionDialog(true);
+                           }}
                            disabled={isCurrentSession(session.sessionId)}
                          >
                            <Trash2 className="h-3 w-3 mr-1" />
@@ -394,7 +451,60 @@ export function SessionManagement() {
              </div>
            )}
          </div>
-      </CardContent>
-    </Card>
+       </CardContent>
+     </Card>
+
+     {/* Confirmation Dialogs */}
+     <ConfirmationDialog
+       open={logoutAllDialog}
+       onOpenChange={setLogoutAllDialog}
+       title="Logout All Sessions"
+       description="This will force logout all active sessions across all users. This action cannot be undone."
+       confirmText="Logout All Sessions"
+       cancelText="Cancel"
+       variant="destructive"
+       loading={logoutLoading}
+       onConfirm={async () => {
+         setLogoutLoading(true);
+         try {
+           console.log('Logout all sessions for all users');
+           const allSessions = await sessionService.getAllActiveSessions();
+           console.log(`Found ${allSessions.length} total sessions to logout`);
+           for (const session of allSessions) {
+             await sessionService.destroySession(session.sessionId);
+           }
+           await handleRefresh();
+         } catch (error) {
+           console.error('Error logging out all sessions:', error);
+         } finally {
+           setLogoutLoading(false);
+         }
+       }}
+     />
+
+     <ConfirmationDialog
+       open={logoutSessionDialog}
+       onOpenChange={setLogoutSessionDialog}
+       title="Logout Session"
+       description="This will force logout the selected session. The user will be immediately signed out."
+       confirmText="Logout Session"
+       cancelText="Cancel"
+       variant="destructive"
+       loading={logoutLoading}
+       onConfirm={async () => {
+         setLogoutLoading(true);
+         try {
+           console.log('Force logging out session:', logoutSessionId);
+           await sessionService.destroySession(logoutSessionId);
+           console.log('Session destroyed, reloading sessions...');
+           await handleRefresh();
+         } catch (error) {
+           console.error('Error logging out session:', error);
+         } finally {
+           setLogoutLoading(false);
+         }
+       }}
+     />
+   </>
   );
-} 
+ } 

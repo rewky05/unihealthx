@@ -28,6 +28,7 @@ import { ref, set, get, remove } from 'firebase/database';
 import { auth, db } from '@/lib/firebase/config';
 import { useAuth } from '@/hooks/useAuth';
 import { AUTH_CONFIG } from '@/lib/config/auth';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 interface AdminUser {
   uid: string;
@@ -58,6 +59,12 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
     lastName: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Confirmation dialog states
+  const [deleteUserDialog, setDeleteUserDialog] = useState(false);
+  const [toggleStatusDialog, setToggleStatusDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Load admin users from Firebase
   useEffect(() => {
@@ -164,15 +171,17 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
       return;
     }
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete ${user.firstName}? This action cannot be undone.`
-    );
+    setSelectedUser(user);
+    setDeleteUserDialog(true);
+  };
 
-    if (!confirmDelete) return;
-
+  const confirmDeleteUser = async () => {
+    if (!selectedUser) return;
+    
+    setActionLoading(true);
     try {
       // Remove from Realtime Database
-      await remove(ref(db, `users/${user.uid}`));
+      await remove(ref(db, `users/${selectedUser.uid}`));
       
       // Refresh users list
       await loadAdminUsers();
@@ -180,6 +189,8 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
     } catch (error) {
       console.error('Error deleting admin user:', error);
       setError('Failed to delete admin user');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -189,12 +200,22 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
       return;
     }
 
+    setSelectedUser(user);
+    setToggleStatusDialog(true);
+  };
+
+  const confirmToggleUserStatus = async () => {
+    if (!selectedUser) return;
+    
+    setActionLoading(true);
     try {
-      await set(ref(db, `users/${user.uid}/isActive`), !user.isActive);
+      await set(ref(db, `users/${selectedUser.uid}/isActive`), !selectedUser.isActive);
       await loadAdminUsers();
     } catch (error) {
       console.error('Error updating user status:', error);
       setError('Failed to update user status');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -427,6 +448,31 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
           )}
       </CardContent>
     </Card>
+
+    {/* Confirmation Dialogs */}
+    <ConfirmationDialog
+      open={deleteUserDialog}
+      onOpenChange={setDeleteUserDialog}
+      title="Delete Admin User"
+      description={`Are you sure you want to delete ${selectedUser?.firstName}? This action cannot be undone and will permanently remove the user from the system.`}
+      confirmText="Delete User"
+      cancelText="Cancel"
+      variant="destructive"
+      loading={actionLoading}
+      onConfirm={confirmDeleteUser}
+    />
+
+    <ConfirmationDialog
+      open={toggleStatusDialog}
+      onOpenChange={setToggleStatusDialog}
+      title={`${selectedUser?.isActive ? 'Deactivate' : 'Activate'} User`}
+      description={`Are you sure you want to ${selectedUser?.isActive ? 'deactivate' : 'activate'} ${selectedUser?.firstName}? This will ${selectedUser?.isActive ? 'prevent' : 'allow'} them from accessing the system.`}
+      confirmText={selectedUser?.isActive ? 'Deactivate' : 'Activate'}
+      cancelText="Cancel"
+      variant="default"
+      loading={actionLoading}
+      onConfirm={confirmToggleUserStatus}
+    />
     </div>
   );
 }

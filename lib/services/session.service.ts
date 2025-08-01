@@ -370,6 +370,20 @@ export class SessionService {
       }
     }, this.config.cleanupIntervalMinutes * 60 * 1000);
   }
+
+  /**
+   * Cleanup expired password reset tokens
+   */
+  async cleanupExpiredPasswordResetTokens(): Promise<number> {
+    try {
+      // Import here to avoid circular dependency
+      const { passwordResetService } = await import('@/lib/services/password-reset.service');
+      return await passwordResetService.cleanupExpiredTokens();
+    } catch (error) {
+      console.error('Error cleaning up expired password reset tokens:', error);
+      return 0;
+    }
+  }
 }
 
 // Export singleton instance

@@ -14,6 +14,7 @@ import { FileText, Plus, Edit, Trash2, Stethoscope, TestTube, Scan, MessageSquar
 import { useToast } from '@/hooks/use-toast';
 import { realDataService } from '@/lib/services/real-data.service';
 import type { MedicalSpecialty, LabTest, ImagingTest, ConsultationType } from '@/lib/types/database';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 interface MedicalServicesCatalogsProps {
   onUnsavedChanges: (hasChanges: boolean) => void;
@@ -39,6 +40,12 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
     description: '',
     category: ''
   });
+  
+  // Confirmation dialog states
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [deleteItemId, setDeleteItemId] = useState<string>('');
+  const [deleteItemName, setDeleteItemName] = useState<string>('');
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Load data from Firebase
   useEffect(() => {
@@ -165,20 +172,36 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
     setIsDialogOpen(false);
   };
 
-  const handleDelete = (itemId: string | undefined) => {
+  const handleDelete = (itemId: string | undefined, itemName: string) => {
     if (!itemId) return;
     
-    const confirmDelete = window.confirm('Are you sure you want to delete this item?');
-    if (!confirmDelete) return;
+    setDeleteItemId(itemId);
+    setDeleteItemName(itemName);
+    setDeleteDialog(true);
+  };
 
-    const currentData = getCurrentData();
-    const updatedData = currentData.filter(item => item.id !== itemId);
-    setCurrentData(updatedData);
+  const confirmDelete = async () => {
+    if (!deleteItemId) return;
     
-    toast({
-      title: "Item deleted",
-      description: "The item has been removed successfully.",
-    });
+    setActionLoading(true);
+    try {
+      const currentData = getCurrentData();
+      const updatedData = currentData.filter(item => item.id !== deleteItemId);
+      setCurrentData(updatedData);
+      
+      toast({
+        title: "Item deleted",
+        description: "The item has been removed successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete item.",
+        variant: "destructive"
+      });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
 
@@ -284,7 +307,7 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(item.id)}
+                              onClick={() => handleDelete(item.id, item.name)}
                               className="text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -362,6 +385,19 @@ export function MedicalServicesCatalogs({ onUnsavedChanges }: MedicalServicesCat
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Confirmation Dialog */}
+        <ConfirmationDialog
+          open={deleteDialog}
+          onOpenChange={setDeleteDialog}
+          title="Delete Item"
+          description={`Are you sure you want to delete "${deleteItemName}"? This action cannot be undone.`}
+          confirmText="Delete Item"
+          cancelText="Cancel"
+          variant="destructive"
+          loading={actionLoading}
+          onConfirm={confirmDelete}
+        />
       </CardContent>
     </Card>
   );

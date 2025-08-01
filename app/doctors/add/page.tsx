@@ -13,6 +13,7 @@ import { DocumentUploadsForm } from '@/components/doctors/document-uploads-form'
 import { ArrowLeft, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { RealDataService } from '@/lib/services/real-data.service';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 export interface DoctorFormData {
   // Personal Information
@@ -87,6 +88,9 @@ export default function AddDoctorPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
   
+  // Confirmation dialog state
+  const [submitDialog, setSubmitDialog] = useState(false);
+  
   const [formData, setFormData] = useState<DoctorFormData>({
     // Personal Information
     firstName: '',
@@ -125,7 +129,11 @@ export default function AddDoctorPage() {
     }));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
+    setSubmitDialog(true);
+  };
+
+  const confirmSubmit = async () => {
     setIsSubmitting(true);
     
     try {
@@ -321,6 +329,19 @@ export default function AddDoctorPage() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        open={submitDialog}
+        onOpenChange={setSubmitDialog}
+        title="Submit Doctor Registration"
+        description={`Are you sure you want to submit the registration for Dr. ${formData.firstName} ${formData.lastName}? This will create a new doctor account in the system.`}
+        confirmText="Submit Registration"
+        cancelText="Cancel"
+        variant="default"
+        loading={isSubmitting}
+        onConfirm={confirmSubmit}
+      />
     </DashboardLayout>
   );
 }

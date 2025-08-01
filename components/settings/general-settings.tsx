@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Settings, Save, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 interface GeneralSettingsProps {
   onUnsavedChanges: (hasChanges: boolean) => void;
@@ -47,6 +48,9 @@ export function GeneralSettings({ onUnsavedChanges }: GeneralSettingsProps) {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [originalData, setOriginalData] = useState<GeneralSettingsData | null>(null);
+  
+  // Confirmation dialog state
+  const [saveDialog, setSaveDialog] = useState(false);
   const [formData, setFormData] = useState<GeneralSettingsData>({
     systemName: 'UniHealth Philippines',
     defaultTimezone: 'Asia/Manila',
@@ -89,7 +93,11 @@ export function GeneralSettings({ onUnsavedChanges }: GeneralSettingsProps) {
     }));
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
+    setSaveDialog(true);
+  };
+
+  const confirmSave = async () => {
     setIsSaving(true);
     
     try {
@@ -123,7 +131,8 @@ export function GeneralSettings({ onUnsavedChanges }: GeneralSettingsProps) {
   const hasChanges = originalData && JSON.stringify(formData) !== JSON.stringify(originalData);
 
   return (
-    <Card className="card-shadow">
+    <>
+      <Card className="card-shadow">
       <CardHeader>
         <CardTitle className="flex items-center">
           <Settings className="h-5 w-5 mr-2" />
@@ -282,5 +291,19 @@ export function GeneralSettings({ onUnsavedChanges }: GeneralSettingsProps) {
         </div>
       </CardContent>
     </Card>
+
+    {/* Confirmation Dialog */}
+    <ConfirmationDialog
+      open={saveDialog}
+      onOpenChange={setSaveDialog}
+      title="Save System Settings"
+      description="Are you sure you want to save these changes? This will update the system configuration and may affect how the platform operates."
+      confirmText="Save Changes"
+      cancelText="Cancel"
+      variant="default"
+      loading={isSaving}
+      onConfirm={confirmSave}
+    />
+    </>
   );
 }

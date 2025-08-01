@@ -8,6 +8,7 @@ import {
   sendPasswordResetEmail,
   sendEmailVerification
 } from 'firebase/auth';
+import { passwordResetService } from '@/lib/services/password-reset.service';
 import { ref, set, get } from 'firebase/database';
 import { auth, db } from '@/lib/firebase/config';
 import { securityService } from '@/lib/services/security.service';
@@ -386,11 +387,11 @@ export class AuthService {
   }
 
   /**
-   * Send password reset email
+   * Send password reset email with 3-minute expiration
    */
   async sendPasswordReset(email: string): Promise<void> {
     try {
-      await sendPasswordResetEmail(auth, email);
+      await passwordResetService.sendPasswordResetEmail(email);
     } catch (error: any) {
       throw new Error(this.getAuthErrorMessage(error.code));
     }
