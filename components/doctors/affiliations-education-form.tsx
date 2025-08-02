@@ -11,13 +11,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Building,
-  GraduationCap,
-  Award,
+  Calendar,
   Plus,
   Edit,
   Trash2,
-  Calendar,
   MapPin,
   Clock,
 } from "lucide-react";
@@ -25,36 +22,20 @@ import { ClinicScheduleDialog } from "./clinic-schedule-dialog";
 import type {
   SpecialistSchedule,
 } from "@/app/doctors/add/page";
-import Link from "next/link";
 
-interface Education {
-  degree: string;
-  school: string;
-  year: string;
-}
-
-interface Certification {
-  name: string;
-  issuer: string;
-  date: string;
-  expiry: string;
-}
-
-interface AffiliationsEducationData {
+interface SchedulesData {
   schedules: SpecialistSchedule[];
-  education: Education[];
-  certifications: Certification[];
 }
 
-interface AffiliationsEducationFormProps {
-  data: AffiliationsEducationData;
-  onUpdate: (data: Partial<AffiliationsEducationData>) => void;
+interface SchedulesFormProps {
+  data: SchedulesData;
+  onUpdate: (data: Partial<SchedulesData>) => void;
 }
 
 export function AffiliationsEducationForm({
   data,
   onUpdate,
-}: AffiliationsEducationFormProps) {
+}: SchedulesFormProps) {
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
 
   const handleAddSchedule = () => {
@@ -67,35 +48,9 @@ export function AffiliationsEducationForm({
     setIsScheduleDialogOpen(true);
   };
 
-  const handleScheduleSave = (scheduleData: Omit<SpecialistSchedule, "id">) => {
-    // This function is no longer needed as the dialog handles all schedule management
-    // The onSave callback from the dialog will update all schedules at once
-  };
-  const handleAddEducation = () => {
-    // TODO: Open education dialog
-    console.log("Add education clicked");
-  };
-
-  const handleAddCertification = () => {
-    // TODO: Open certification dialog
-    console.log("Add certification clicked");
-  };
-
   const removeSchedule = (index: number) => {
     const updatedSchedules = data.schedules.filter((_, i) => i !== index);
     onUpdate({ schedules: updatedSchedules });
-  };
-
-  const removeEducation = (index: number) => {
-    const updatedEducation = data.education.filter((_, i) => i !== index);
-    onUpdate({ education: updatedEducation });
-  };
-
-  const removeCertification = (index: number) => {
-    const updatedCertifications = data.certifications.filter(
-      (_, i) => i !== index
-    );
-    onUpdate({ certifications: updatedCertifications });
   };
 
   const getDayNames = (dayNumbers: number[]) => {
@@ -207,149 +162,6 @@ export function AffiliationsEducationForm({
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Education & Training */}
-      <Card className="card-shadow">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center">
-                <GraduationCap className="h-5 w-5 mr-2" />
-                Education & Training
-              </CardTitle>
-              <CardDescription>
-                Add medical education, residency, and fellowship information
-              </CardDescription>
-            </div>
-            <Button onClick={handleAddEducation} size="sm" variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Education
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {data.education.length === 0 ? (
-            <div className="text-center py-8 border-2 border-dashed border-muted rounded-lg">
-              <GraduationCap className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground mb-2">
-                No education records added
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Click &quot;Add Education&quot; to add medical school, residency, or
-                fellowship information
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {data.education.map((edu, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                      <GraduationCap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">{edu.degree}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {edu.school}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Graduated {edu.year}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeEducation(index)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Board Certifications */}
-      <Card className="card-shadow">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center">
-                <Award className="h-5 w-5 mr-2" />
-                Board Certifications
-              </CardTitle>
-              <CardDescription>
-                Add professional board certifications and specializations
-              </CardDescription>
-            </div>
-            <Button
-              onClick={handleAddCertification}
-              size="sm"
-              variant="outline"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Certification
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {data.certifications.length === 0 ? (
-            <div className="text-center py-8 border-2 border-dashed border-muted rounded-lg">
-              <Award className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground mb-2">
-                No certifications added
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Click &quot;Add Certification&quot; to add board certifications and
-                professional credentials
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {data.certifications.map((cert, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                      <Award className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">{cert.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {cert.issuer}
-                      </p>
-                      <div className="flex items-center space-x-4 text-xs text-muted-foreground mt-1">
-                        <span>
-                          Issued: {new Date(cert.date).toLocaleDateString()}
-                        </span>
-                        <span>
-                          Expires: {new Date(cert.expiry).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeCertification(index)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
               ))}
             </div>

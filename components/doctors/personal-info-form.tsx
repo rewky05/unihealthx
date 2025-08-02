@@ -119,13 +119,14 @@ export function PersonalInfoForm({ data, onUpdate }: PersonalInfoFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="middleName">
-                Middle Name
+                Middle Name <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="middleName"
                 placeholder="Enter middle name"
                 value={data.middleName || ''}
                 onChange={(e) => handleInputChange("middleName", e.target.value)}
+                required
               />
             </div>
             <div className="space-y-2">
@@ -157,20 +158,26 @@ export function PersonalInfoForm({ data, onUpdate }: PersonalInfoFormProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone">
+                Phone Number <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="phone"
                 type="tel"
                 placeholder="+63 917 123 4567"
                 value={data.phone || ''}
                 onChange={(e) => handleInputChange("phone", e.target.value)}
+                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="suffix">Suffix</Label>
+              <Label htmlFor="suffix">
+                Suffix <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={data.suffix || ''}
                 onValueChange={(value) => handleInputChange("suffix", value)}
+                required
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select suffix" />
@@ -187,13 +194,16 @@ export function PersonalInfoForm({ data, onUpdate }: PersonalInfoFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
+            <Label htmlFor="address">
+              Address <span className="text-destructive">*</span>
+            </Label>
             <Textarea
               id="address"
               placeholder="Enter complete address"
               value={data.address || ''}
               onChange={(e) => handleInputChange("address", e.target.value)}
               rows={3}
+              required
             />
           </div>
         </CardContent>
@@ -210,7 +220,9 @@ export function PersonalInfoForm({ data, onUpdate }: PersonalInfoFormProps) {
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <Label htmlFor="dateOfBirth">
+                Date of Birth <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="dateOfBirth"
                 type="date"
@@ -218,13 +230,17 @@ export function PersonalInfoForm({ data, onUpdate }: PersonalInfoFormProps) {
                 onChange={(e) =>
                   handleInputChange("dateOfBirth", e.target.value)
                 }
+                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="gender">Gender</Label>
+              <Label htmlFor="gender">
+                Gender <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={data.gender || ''}
                 onValueChange={(value) => handleInputChange("gender", value)}
+                required
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select gender" />
@@ -239,12 +255,15 @@ export function PersonalInfoForm({ data, onUpdate }: PersonalInfoFormProps) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="civilStatus">Civil Status</Label>
+              <Label htmlFor="civilStatus">
+                Civil Status <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={data.civilStatus || ''}
                 onValueChange={(value) =>
                   handleInputChange("civilStatus", value)
                 }
+                required
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select civil status" />

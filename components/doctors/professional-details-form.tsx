@@ -75,7 +75,7 @@ export function ProfessionalDetailsForm({ data, onUpdate }: ProfessionalDetailsF
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="subSpecialty">Sub-Specialty</Label>
+              <Label htmlFor="subSpecialty">Sub-Specialty (Optional)</Label>
               <Input
                 id="subSpecialty"
                 placeholder="e.g., Interventional Cardiology"
