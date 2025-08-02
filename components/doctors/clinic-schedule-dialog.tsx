@@ -14,45 +14,17 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Building, Plus, Trash2, Calendar, Clock, MapPin, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SpecialistSchedule } from '@/app/doctors/add/page';
+import { useRealClinics } from '@/hooks/useRealData';
 
 interface ClinicScheduleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   existingSchedules: SpecialistSchedule[];
   onSave: (schedules: SpecialistSchedule[]) => void;
+  specialistId?: string; // Add specialistId prop
 }
 
-// Mock clinic data based on the provided schema
-const EXISTING_CLINICS = [
-  {
-    id: 'clin_cebu_central_id',
-    name: 'UniHealth Central Clinic',
-    addressLine: 'Ayala Center Cebu, Archbishop Reyes Ave, Cebu City',
-    contactNumber: '+63324123456',
-    type: 'multi_specialty_clinic'
-  },
-  {
-    id: 'clin_cebu_doctors_id',
-    name: 'Cebu Doctors\' University Hospital',
-    addressLine: 'Osmeña Blvd, Capitol Site, Cebu City, 6000 Cebu, Philippines',
-    contactNumber: '+63322537500',
-    type: 'hospital'
-  },
-  {
-    id: 'clin_lahug_uhc_id',
-    name: 'Lahug Urban Health Center',
-    addressLine: 'Salinas Drive, Lahug, Cebu City, 6000 Cebu, Philippines',
-    contactNumber: '+63322312345',
-    type: 'community_clinic'
-  },
-  {
-    id: 'clin_perpetual_succour_id',
-    name: 'Perpetual Succour Hospital',
-    addressLine: 'Gorordo Ave, Cebu City, 6000 Cebu, Philippines',
-    contactNumber: '+63322338620',
-    type: 'hospital'
-  }
-];
+
 
 const CLINIC_TYPES = ['hospital', 'multi_specialty_clinic', 'community_clinic', 'private_clinic'];
 const DAYS_OF_WEEK = [
@@ -65,11 +37,24 @@ const DAYS_OF_WEEK = [
   { value: 0, label: 'Sunday' }
 ];
 
-export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, onSave }: ClinicScheduleDialogProps) {
+export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, onSave, specialistId }: ClinicScheduleDialogProps) {
   const [clinicSearchOpen, setClinicSearchOpen] = useState(false);
   const [clinicSearchValue, setClinicSearchValue] = useState('');
-  const [selectedClinic, setSelectedClinic] = useState<typeof EXISTING_CLINICS[0] | null>(null);
+  const [selectedClinic, setSelectedClinic] = useState<any>(null);
   const [isNewClinic, setIsNewClinic] = useState(false);
+  
+  // Get real clinic data from Firebase
+  const { clinics, loading: clinicsLoading } = useRealClinics();
+  
+
+  
+  // Fallback mapping for old hardcoded clinic IDs
+  const clinicIdMapping: { [key: string]: string } = {
+    'clin_cebu_central_id': 'Cebu Medical Center',
+    'clin_cebu_doctors_id': 'Metro Cebu Hospital',
+    'clin_lahug_uhc_id': 'Skin Care Clinic',
+    'clin_perpetual_succour_id': 'Cebu Medical Center'
+  };
   
   // Local state for managing schedule blocks during editing
   const [localSchedules, setLocalSchedules] = useState<SpecialistSchedule[]>([]);
@@ -91,11 +76,54 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
     }
   });
 
+  // Helper function to test slotTemplate generation
+  const testSlotTemplateGeneration = () => {
+    // Test case: 8 AM to 10 AM with 30-minute slots
+    const testStartTime = '08:00';
+    const testEndTime = '10:00';
+    const testDuration = 30;
+    
+    const startHour = parseInt(testStartTime.split(':')[0]);
+    const startMinute = parseInt(testStartTime.split(':')[1]);
+    const endHour = parseInt(testEndTime.split(':')[0]);
+    const endMinute = parseInt(testEndTime.split(':')[1]);
+    
+    const startMinutes = startHour * 60 + startMinute;
+    const endMinutes = endHour * 60 + endMinute;
+    
+    const testSlotTemplate: { [key: string]: { defaultStatus: string; durationMinutes: number } } = {};
+    
+    for (let time = startMinutes; time < endMinutes; time += testDuration) {
+      const hour = Math.floor(time / 60);
+      const minute = time % 60;
+      const time24h = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      const time12h = convertTo12Hour(time24h);
+      
+      const slotEndTime = time + testDuration;
+      if (slotEndTime <= endMinutes) {
+        testSlotTemplate[time12h] = {
+          defaultStatus: 'available',
+          durationMinutes: testDuration
+        };
+      }
+    }
+    
+    console.log('Test slotTemplate generation:');
+    console.log('Expected slots: 8:00 AM, 8:30 AM, 9:00 AM, 9:30 AM');
+    console.log('Generated slots:', Object.keys(testSlotTemplate));
+    console.log('Full testSlotTemplate:', testSlotTemplate);
+    
+    return testSlotTemplate;
+  };
+
   // Initialize local schedules when dialog opens
   useEffect(() => {
     if (open) {
       setLocalSchedules([...existingSchedules]);
       resetForm();
+      
+      // Test slotTemplate generation (for development only)
+      testSlotTemplateGeneration();
     }
   }, [open, existingSchedules]);
 
@@ -156,7 +184,7 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
     });
   };
 
-  const handleClinicSelect = (clinic: typeof EXISTING_CLINICS[0] | null) => {
+  const handleClinicSelect = (clinic: any) => {
     if (clinic) {
       setSelectedClinic(clinic);
       setIsNewClinic(false);
@@ -190,7 +218,8 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
   };
 
   const addScheduleBlock = () => {
-    if (formData.roomOrUnit && 
+    if (selectedClinic && 
+        formData.roomOrUnit && 
         formData.dayOfWeek && formData.dayOfWeek.length > 0 &&
         formData.startTime && 
         formData.endTime && 
@@ -198,6 +227,8 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
       
       // Generate slot template from start/end times in 12-hour format
       const slotTemplate: { [key: string]: { defaultStatus: string; durationMinutes: number } } = {};
+      
+      // Parse start and end times (they come in 24-hour format from the time input)
       const startHour = parseInt(formData.startTime.split(':')[0]);
       const startMinute = parseInt(formData.startTime.split(':')[1]);
       const endHour = parseInt(formData.endTime.split(':')[0]);
@@ -214,15 +245,26 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
         const time24h = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
         const time12h = convertTo12Hour(time24h);
         
-        slotTemplate[time12h] = {
-          defaultStatus: 'available',
-          durationMinutes: formData.slotDurationMinutes
-        };
+        // Only add slot if it doesn't exceed the end time
+        const slotEndTime = time + formData.slotDurationMinutes;
+        if (slotEndTime <= endMinutes) {
+          slotTemplate[time12h] = {
+            defaultStatus: 'available',
+            durationMinutes: formData.slotDurationMinutes
+          };
+        }
       }
+      
+      // Debug: Log the generated slotTemplate (for development only)
+      console.log('Generated slotTemplate:', slotTemplate);
+      console.log('Start time:', formData.startTime, 'End time:', formData.endTime, 'Duration:', formData.slotDurationMinutes);
+      console.log('Start minutes:', startMinutes, 'End minutes:', endMinutes);
+      
+
       
       const newSchedule: SpecialistSchedule = {
         id: `sch_${Date.now()}`,
-        specialistId: 'temp_specialist_id',
+        specialistId: specialistId || 'temp_specialist_id',
         practiceLocation: {
           clinicId: selectedClinic?.id || '',
           roomOrUnit: formData.roomOrUnit
@@ -234,7 +276,9 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
         scheduleType: 'Weekly',
         slotTemplate: slotTemplate,
         validFrom: formData.validFrom,
-        isActive: formData.isActive
+        isActive: formData.isActive,
+        createdAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
       };
       
       // Add to local schedules instead of saving immediately
@@ -270,6 +314,18 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
   };
 
   const handleSave = () => {
+    // Debug: Log what's being saved (for development only)
+    console.log('Saving schedules:', localSchedules);
+    console.log('Number of schedules:', localSchedules.length);
+    localSchedules.forEach((schedule, index) => {
+      console.log(`Schedule ${index + 1}:`, {
+        id: schedule.id,
+        slotTemplate: schedule.slotTemplate,
+        slotTemplateKeys: Object.keys(schedule.slotTemplate || {}),
+        slotTemplateCount: Object.keys(schedule.slotTemplate || {}).length
+      });
+    });
+    
     // Save all local schedules at once
     onSave(localSchedules);
     onOpenChange(false);
@@ -289,7 +345,9 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
   };
 
   const isScheduleValid = () => {
-    return formData.roomOrUnit && 
+    return selectedClinic && 
+           !clinicsLoading &&
+           formData.roomOrUnit && 
            formData.dayOfWeek && formData.dayOfWeek.length > 0 &&
            formData.startTime && 
            formData.endTime && 
@@ -319,16 +377,20 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Clinic</Label>
+                <Label>Clinic *</Label>
                 <Popover open={clinicSearchOpen} onOpenChange={setClinicSearchOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       role="combobox"
                       aria-expanded={clinicSearchOpen}
-                      className="w-full justify-between"
+                      disabled={clinicsLoading}
+                      className={cn(
+                        "w-full justify-between",
+                        !selectedClinic && "border-red-300 focus:border-red-500"
+                      )}
                     >
-                      {clinicSearchValue || "Search or add clinic..."}
+                      {clinicsLoading ? "Loading clinics..." : clinicSearchValue || "Search or add clinic..."}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -353,7 +415,7 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
                           </div>
                         </CommandEmpty>
                         <CommandGroup>
-                          {EXISTING_CLINICS
+                          {clinics
                             .filter(clinic => 
                               clinic.name.toLowerCase().includes(clinicSearchValue.toLowerCase())
                             )
@@ -379,6 +441,17 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
                     </Command>
                   </PopoverContent>
                 </Popover>
+                {selectedClinic && (
+                  <div className="flex items-center space-x-2 text-sm text-green-600">
+                    <Check className="h-4 w-4" />
+                    <span>Selected: {selectedClinic.name}</span>
+                  </div>
+                )}
+                {!selectedClinic && (
+                  <div className="text-sm text-red-600">
+                    Please select a clinic to continue
+                  </div>
+                )}
               </div>
 
               {/* New Clinic Details - Only show when adding new clinic */}
@@ -451,13 +524,25 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="grid gap-2 text-sm">
-                        <div><strong>Clinic:</strong> {EXISTING_CLINICS.find(c => c.id === schedule.practiceLocation?.clinicId)?.name || 'Unknown Clinic'}</div>
-                        <div><strong>Room:</strong> {schedule.practiceLocation?.roomOrUnit || 'Not specified'}</div>
-                        <div><strong>Days:</strong> {getDayNames(schedule.recurrence?.dayOfWeek || [])}</div>
-                        <div><strong>Time Slots:</strong> {Object.keys(schedule.slotTemplate || {}).length} slots</div>
-                        <div><strong>Valid From:</strong> {schedule.validFrom ? new Date(schedule.validFrom).toLocaleDateString() : 'Not set'}</div>
-                      </div>
+                                             <div className="grid gap-2 text-sm">
+                         <div><strong>Clinic:</strong> {
+                           (() => {
+                             const clinic = clinics.find(c => c.id === schedule.practiceLocation?.clinicId);
+                             
+                             if (clinic) {
+                               return clinic.name;
+                             } else if (schedule.practiceLocation?.clinicId && clinicIdMapping[schedule.practiceLocation.clinicId]) {
+                               return clinicIdMapping[schedule.practiceLocation.clinicId];
+                             } else {
+                               return `Unknown Clinic (ID: ${schedule.practiceLocation?.clinicId})`;
+                             }
+                           })()
+                         }</div>
+                         <div><strong>Room:</strong> {schedule.practiceLocation?.roomOrUnit || 'Not specified'}</div>
+                         <div><strong>Days:</strong> {getDayNames(schedule.recurrence?.dayOfWeek || [])}</div>
+                         <div><strong>Time Slots:</strong> {Object.keys(schedule.slotTemplate || {}).length} slots</div>
+                         <div><strong>Valid From:</strong> {schedule.validFrom ? new Date(schedule.validFrom).toLocaleDateString() : 'Not set'}</div>
+                       </div>
                     </div>
                   ))}
                 </div>

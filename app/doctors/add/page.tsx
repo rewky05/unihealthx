@@ -196,8 +196,8 @@ export default function AddDoctorPage() {
       isValidPhone(formData.phone),
       formData.address.trim().length >= 10,
       isValidDate(formData.dateOfBirth),
-      formData.gender.trim() && ['Male', 'Female', 'Other'].includes(formData.gender),
-      formData.civilStatus.trim().length > 0,
+      formData.gender.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender),
+      formData.civilStatus.trim().length > 0 && ['single', 'married', 'divorced', 'widowed', 'separated'].includes(formData.civilStatus),
       formData.specialty.trim().length >= 3,
       isValidLicense(formData.medicalLicense),
       isValidPRCId(formData.prcId),
@@ -205,24 +205,69 @@ export default function AddDoctorPage() {
       isValidProfessionalFee(formData.professionalFee)
     ];
     
+    // Debug: Log validation results
+    const fieldNames = [
+      'firstName', 'lastName', 'middleName', 'suffix', 'email', 'phone', 
+      'address', 'dateOfBirth', 'gender', 'civilStatus', 'specialty', 
+      'medicalLicense', 'prcId', 'prcExpiry', 'professionalFee'
+    ];
+    
+    const failedFields = fieldNames.filter((_, index) => !validations[index]);
+    if (failedFields.length > 0) {
+      console.log('Failed validation fields:', failedFields);
+      console.log('Form data:', formData);
+    }
+    
     return validations.every(valid => valid);
   };
 
   // Validation functions
   const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email.trim());
+    const isValid = emailRegex.test(email.trim());
+    
+    if (!isValid && email.trim()) {
+      console.log('Email validation failed:', {
+        email: email.trim(),
+        isValid
+      });
+    }
+    
+    return isValid;
   };
 
   const isValidPhone = (phone: string) => {
-    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
+    // More flexible phone validation for Philippine numbers
+    const cleanedPhone = phone.replace(/[\s\-\(\)]/g, '');
+    // Allow various Philippine phone formats
+    const phoneRegex = /^(\+63|63|0)?[9]\d{8,9}$/;
+    const isValid = phoneRegex.test(cleanedPhone);
+    
+    if (!isValid && phone.trim()) {
+      console.log('Phone validation failed:', {
+        original: phone,
+        cleaned: cleanedPhone,
+        isValid
+      });
+    }
+    
+    return isValid;
   };
 
   const isValidDate = (date: string) => {
     if (!date.trim()) return false;
     const dateObj = new Date(date);
-    return dateObj instanceof Date && !isNaN(dateObj.getTime()) && dateObj < new Date();
+    const isValid = dateObj instanceof Date && !isNaN(dateObj.getTime()) && dateObj < new Date();
+    
+    if (!isValid && date.trim()) {
+      console.log('Date validation failed:', {
+        original: date,
+        dateObj,
+        isValid
+      });
+    }
+    
+    return isValid;
   };
 
   const isValidLicense = (license: string) => {
@@ -257,8 +302,8 @@ export default function AddDoctorPage() {
     if (isValidPhone(formData.phone)) completedFields++;
     if (formData.address.trim().length >= 10) completedFields++;
     if (isValidDate(formData.dateOfBirth)) completedFields++;
-    if (formData.gender.trim() && ['Male', 'Female', 'Other'].includes(formData.gender)) completedFields++;
-    if (formData.civilStatus.trim().length > 0) completedFields++;
+    if (formData.gender.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender)) completedFields++;
+    if (formData.civilStatus.trim().length > 0 && ['single', 'married', 'divorced', 'widowed', 'separated'].includes(formData.civilStatus)) completedFields++;
 
     // Professional Details (5 required fields) - with validation (excluding sub-specialty)
     if (formData.specialty.trim().length >= 3) completedFields++;
@@ -289,17 +334,32 @@ export default function AddDoctorPage() {
     switch (tabName) {
       case 'personal':
         let completedPersonal = 0;
-        if (formData.firstName.trim().length >= 2) completedPersonal++;
-        if (formData.lastName.trim().length >= 2) completedPersonal++;
-        if (formData.middleName.trim().length >= 2) completedPersonal++;
-        if (formData.suffix.trim().length > 0) completedPersonal++;
-        if (isValidEmail(formData.email)) completedPersonal++;
-        if (isValidPhone(formData.phone)) completedPersonal++;
-        if (formData.address.trim().length >= 10) completedPersonal++;
-        if (isValidDate(formData.dateOfBirth)) completedPersonal++;
-        if (formData.gender.trim() && ['Male', 'Female', 'Other'].includes(formData.gender)) completedPersonal++;
-        if (formData.civilStatus.trim().length > 0) completedPersonal++;
-        return Math.round((completedPersonal / 10) * 100);
+        const personalValidations = [
+          { field: 'firstName', valid: formData.firstName.trim().length >= 2 },
+          { field: 'lastName', valid: formData.lastName.trim().length >= 2 },
+          { field: 'middleName', valid: formData.middleName.trim().length >= 2 },
+          { field: 'suffix', valid: formData.suffix.trim().length > 0 },
+          { field: 'email', valid: isValidEmail(formData.email) },
+          { field: 'phone', valid: isValidPhone(formData.phone) },
+          { field: 'address', valid: formData.address.trim().length >= 10 },
+          { field: 'dateOfBirth', valid: isValidDate(formData.dateOfBirth) },
+          { field: 'gender', valid: formData.gender.trim() && ['male', 'female', 'other', 'prefer-not-to-say'].includes(formData.gender) },
+          { field: 'civilStatus', valid: formData.civilStatus.trim().length > 0 && ['single', 'married', 'divorced', 'widowed', 'separated'].includes(formData.civilStatus) }
+        ];
+        
+        personalValidations.forEach(({ field, valid }) => {
+          if (valid) completedPersonal++;
+          else {
+            console.log(`Personal field failed: ${field}`, {
+              value: formData[field as keyof typeof formData],
+              valid
+            });
+          }
+        });
+        
+        const progress = Math.round((completedPersonal / 10) * 100);
+        console.log(`Personal progress: ${completedPersonal}/10 = ${progress}%`);
+        return progress;
       
       case 'professional':
         let completedProfessional = 0;
@@ -509,7 +569,8 @@ export default function AddDoctorPage() {
                      subSpecialty: formData.subSpecialty,
                      medicalLicense: formData.medicalLicense,
                      prcId: formData.prcId,
-                     prcExpiry: formData.prcExpiry
+                     prcExpiry: formData.prcExpiry,
+                     professionalFee: formData.professionalFee
                    }}
                    onUpdate={(data) => {
                      setFormData(prev => ({ ...prev, ...data }));

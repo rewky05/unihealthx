@@ -43,6 +43,7 @@ interface ScheduleCardProps {
   onScheduleAdd: (schedule: Omit<SpecialistSchedule, "id">) => void;
   onScheduleEdit: (schedule: SpecialistSchedule) => void;
   onScheduleDelete: (scheduleId: string) => void;
+  specialistId?: string; // Add specialistId prop
 }
 
 const DAYS_OF_WEEK = [
@@ -60,6 +61,7 @@ export function ScheduleCard({
   onScheduleAdd,
   onScheduleEdit,
   onScheduleDelete,
+  specialistId,
 }: ScheduleCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<SpecialistSchedule | null>(null);
@@ -72,8 +74,24 @@ export function ScheduleCard({
     if (clinicsLoading) {
       return 'Loading...';
     }
+    
+    // Fallback mapping for old hardcoded clinic IDs
+    const clinicIdMapping: { [key: string]: string } = {
+      'clin_cebu_central_id': 'Cebu Medical Center',
+      'clin_cebu_doctors_id': 'Metro Cebu Hospital',
+      'clin_lahug_uhc_id': 'Skin Care Clinic',
+      'clin_perpetual_succour_id': 'Cebu Medical Center'
+    };
+    
     const clinic = clinics.find(c => c.id === clinicId);
-    return clinic ? clinic.name : `Clinic ${clinicId}`;
+    
+    if (clinic) {
+      return clinic.name;
+    } else if (clinicId && clinicIdMapping[clinicId]) {
+      return clinicIdMapping[clinicId];
+    } else {
+      return `Clinic ID: ${clinicId}`;
+    }
   };
 
   // Helper function to format date consistently
@@ -97,12 +115,18 @@ export function ScheduleCard({
     setIsDialogOpen(true);
   };
 
-  const handleSave = (scheduleData: Omit<SpecialistSchedule, "id">) => {
-    if (editingSchedule) {
-      onScheduleEdit({ ...scheduleData, id: editingSchedule.id });
-    } else {
-      onScheduleAdd(scheduleData);
-    }
+  const handleSave = (schedulesData: SpecialistSchedule[]) => {
+    // Handle multiple schedules from the dialog
+    schedulesData.forEach(schedule => {
+      if (schedule.id && schedule.id.startsWith('sch_')) {
+        // This is a new schedule (has temporary ID)
+        const { id, ...scheduleWithoutId } = schedule;
+        onScheduleAdd(scheduleWithoutId);
+      } else if (schedule.id) {
+        // This is an existing schedule being edited
+        onScheduleEdit(schedule);
+      }
+    });
     setIsDialogOpen(false);
   };
 
@@ -185,7 +209,7 @@ export function ScheduleCard({
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center space-x-2">
-                      <Building className="h-4 w-4 text-primary" />
+                      <Building className="h-4 w-4 text-primary" /> 
                       <span className="font-medium text-sm">{schedule.practiceLocation?.roomOrUnit || 'No room specified'}</span>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -262,8 +286,9 @@ export function ScheduleCard({
         <ClinicScheduleDialog
           open={isDialogOpen}
           onOpenChange={setIsDialogOpen}
-          schedule={editingSchedule}
+          existingSchedules={schedules}
           onSave={handleSave}
+          specialistId={specialistId}
         />
       )}
     </>

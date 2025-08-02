@@ -9,6 +9,8 @@ import { DoctorInfoBanner } from "@/components/schedules/doctor-info-banner";
 import { ScheduleCard, type SpecialistSchedule } from "@/components/schedules/schedule-card";
 import { useRealDoctors } from "@/hooks/useRealData";
 import { useScheduleData } from "@/hooks/use-schedule-data";
+import { useDoctorActions } from "@/hooks/useDoctors";
+import { useAuth } from "@/hooks/useAuth";
 import { formatPhilippinePeso } from '@/lib/utils';
 import {
   Card,
@@ -64,9 +66,13 @@ export default function DoctorDetailPage() {
   const params = useParams();
   const doctorId = params.id as string;
   const { doctors, loading, error } = useRealDoctors();
+  const { updateDoctorStatus, loading: actionLoading, error: actionError } = useDoctorActions();
+  const { user } = useAuth();
   const [verificationStatus, setVerificationStatus] = useState("");
   const [verificationNotes, setVerificationNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string>("");
 
   // Use the Firebase-integrated schedule data hook
   const {
@@ -88,13 +94,49 @@ export default function DoctorDetailPage() {
     }
   }, [doctor]);
 
-  const handleVerificationSubmit = async () => {
+  const handleStatusChange = (newStatus: string) => {
+    setPendingStatus(newStatus);
+  };
+
+  const handleConfirmStatusChange = async () => {
+    if (!pendingStatus || !user) return;
+    
     setIsSaving(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await updateDoctorStatus(
+        doctorId, 
+        pendingStatus as 'pending' | 'verified' | 'suspended',
+        user.email, // Using email as verifiedBy identifier
+        verificationNotes
+      );
+      
+      // Update local state
+      setVerificationStatus(pendingStatus);
+      setShowConfirmDialog(false);
+      setPendingStatus("");
+      setVerificationNotes("");
+      
+      // Show success message
+      alert(`Doctor status successfully updated to ${pendingStatus}`);
+    } catch (error) {
+      console.error('Error updating doctor status:', error);
+      alert('Failed to update doctor status. Please try again.');
+    } finally {
       setIsSaving(false);
-      // Add new log entry (in real app, this would be handled by the backend)
-    }, 1000);
+    }
+  };
+
+  const getStatusConfirmationMessage = (status: string) => {
+    switch (status) {
+      case 'verified':
+        return 'Are you sure you want to verify this doctor? This will grant them full access to the system and send them a confirmation email.';
+      case 'pending':
+        return 'Are you sure you want to set this doctor status to pending? This will restrict their access until further verification.';
+      case 'suspended':
+        return 'Are you sure you want to suspend this doctor? This will immediately revoke their access to the system.';
+      default:
+        return 'Are you sure you want to change this doctor\'s status?';
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -218,14 +260,13 @@ export default function DoctorDetailPage() {
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="credentials">Credentials</TabsTrigger>
-            <TabsTrigger value="schedules">Schedules</TabsTrigger>
-            <TabsTrigger value="verification">Verification</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
-          </TabsList>
+                 <Tabs defaultValue="overview" className="space-y-6">
+           <TabsList className="grid w-full grid-cols-4">
+             <TabsTrigger value="overview">Overview</TabsTrigger>
+             <TabsTrigger value="schedules">Schedules</TabsTrigger>
+             <TabsTrigger value="verification">Verification</TabsTrigger>
+             <TabsTrigger value="activity">Activity</TabsTrigger>
+           </TabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
@@ -258,20 +299,20 @@ export default function DoctorDetailPage() {
                       {doctor.dateOfBirth ? new Date(doctor.dateOfBirth).toLocaleDateString() : 'Not specified'}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 pt-2">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Gender
-                      </p>
-                      <p>{doctor.gender || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Civil Status
-                      </p>
-                      <p>{doctor.civilStatus || 'Not specified'}</p>
-                    </div>
-                  </div>
+                                     <div className="grid grid-cols-2 gap-4 pt-2">
+                     <div>
+                       <p className="text-sm font-medium text-muted-foreground">
+                         Gender
+                       </p>
+                       <p>{doctor.gender ? doctor.gender.charAt(0).toUpperCase() + doctor.gender.slice(1) : 'Not specified'}</p>
+                     </div>
+                     <div>
+                       <p className="text-sm font-medium text-muted-foreground">
+                         Civil Status
+                       </p>
+                       <p>{doctor.civilStatus ? doctor.civilStatus.charAt(0).toUpperCase() + doctor.civilStatus.slice(1) : 'Not specified'}</p>
+                     </div>
+                   </div>
                 </CardContent>
               </Card>
 
@@ -307,6 +348,10 @@ export default function DoctorDetailPage() {
                       Professional Fee
                     </p>
                     <p>{formatPhilippinePeso(doctor.professionalFee)}</p>
+                    {/* Debug info - remove in production */}
+                    <p className="text-xs text-muted-foreground">
+                      Raw value: {JSON.stringify(doctor.professionalFee)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
@@ -318,155 +363,10 @@ export default function DoctorDetailPage() {
               </Card>
             </div>
 
-            {/* Education */}
-            <Card className="card-shadow">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <GraduationCap className="h-5 w-5 mr-2" />
-                  Education & Training
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {doctor.education && doctor.education.length > 0 ? (
-                    doctor.education.map((edu, index) => (
-                      <div key={index} className="border-l-2 border-primary pl-4">
-                        <h4 className="font-medium">{edu.degree}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {edu.university || edu.institution || 'Institution not specified'}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Graduated {edu.year}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-muted-foreground">No education information available</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+
           </TabsContent>
 
-          {/* Credentials Tab */}
-          <TabsContent value="credentials" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* Documents */}
-              <Card className="card-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <FileText className="h-5 w-5 mr-2" />
-                    Documents
-                  </CardTitle>
-                  <CardDescription>
-                    Uploaded credential documents
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <p className="text-muted-foreground">Document management will be available in future updates.</p>
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">PRC License</p>
-                          <p className="text-xs text-muted-foreground">
-                            License Document
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge
-                          variant="outline"
-                          className="text-green-600"
-                        >
-                          <Check className="h-3 w-3 mr-1" />
-                          verified
-                        </Badge>
-                        <Button variant="ghost" size="icon">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  <Button variant="outline" className="w-full mt-4">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload New Document
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Certifications */}
-              <Card className="card-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Award className="h-5 w-5 mr-2" />
-                    Board Certifications
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {doctor.boardCertifications && doctor.boardCertifications.length > 0 ? (
-                      doctor.boardCertifications.map((cert, index) => (
-                        <div key={index} className="p-4 border rounded-lg">
-                          <h4 className="font-medium">{cert}</h4>
-                          <p className="text-xs text-muted-foreground">Board Certification</p>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground">No board certifications listed</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="card-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <GraduationCap className="h-5 w-5 mr-2" />
-                    Fellowships
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {doctor.fellowships && doctor.fellowships.length > 0 ? (
-                      doctor.fellowships.map((fellow, index) => (
-                        <div key={index} className="p-4 border rounded-lg">
-                          <h4 className="font-medium">{fellow}</h4>
-                          <p className="text-xs text-muted-foreground">Fellowship</p>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground">No fellowships listed</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="card-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Award className="h-5 w-5 mr-2" />
-                    Accreditations
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {doctor.accreditations && doctor.accreditations.length > 0 ? (
-                      doctor.accreditations.map((acc, index) => (
-                        <div key={index} className="p-4 border rounded-lg">
-                          <h4 className="font-medium">{acc}</h4>
-                          <p className="text-xs text-muted-foreground">Accreditation</p>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground">No accreditations listed</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+          
 
           {/* Schedules Tab */}
           <TabsContent value="schedules" className="space-y-6">
@@ -494,6 +394,7 @@ export default function DoctorDetailPage() {
                   onScheduleAdd={handleScheduleAdd}
                   onScheduleEdit={handleScheduleEdit}
                   onScheduleDelete={handleScheduleDelete}
+                  specialistId={doctorId}
                 />
               </div>
             </Card>
@@ -511,16 +412,27 @@ export default function DoctorDetailPage() {
                   Manage doctor verification status and add admin notes
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Verification Status</Label>
+                             <CardContent className="space-y-6">
+                 <div className="grid gap-4 md:grid-cols-2">
+                   <div className="space-y-2">
+                     <Label htmlFor="status">Current Status</Label>
+                     <div className="p-3 border rounded-lg bg-muted/50">
+                       <Badge className={getStatusColor(verificationStatus)}>
+                         {verificationStatus === "verified" && <Check className="h-3 w-3 mr-1" />}
+                         {verificationStatus === "pending" && <Clock className="h-3 w-3 mr-1" />}
+                         {verificationStatus === "suspended" && <X className="h-3 w-3 mr-1" />}
+                         <span className="capitalize">{verificationStatus || 'pending'}</span>
+                       </Badge>
+                     </div>
+                   </div>
+                                     <div className="space-y-2">
+                    <Label htmlFor="newStatus">Change Status To</Label>
                     <Select
-                      value={verificationStatus}
-                      onValueChange={setVerificationStatus}
+                      value={pendingStatus}
+                      onValueChange={handleStatusChange}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Select new status" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="pending">Pending Review</SelectItem>
@@ -529,52 +441,36 @@ export default function DoctorDetailPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
+                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Verification Notes</Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Add notes about the verification process..."
-                    value={verificationNotes}
-                    onChange={(e) => setVerificationNotes(e.target.value)}
-                    rows={3}
-                  />
-                </div>
+                                   <div className="space-y-2">
+                    <Label htmlFor="notes">Verification Notes</Label>
+                    <Textarea
+                      id="notes"
+                      placeholder="Add notes about the verification process..."
+                      value={verificationNotes}
+                      onChange={(e) => setVerificationNotes(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
 
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleVerificationSubmit}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? "Saving..." : "Save Changes"}
-                  </Button>
-                  {verificationStatus === "verified" && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline">
-                          <Check className="h-4 w-4 mr-2" />
-                          Verify Doctor
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Verify Doctor</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to verify this doctor? This
-                            action will update their status and send them a
-                            confirmation email.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction>Verify</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                  {actionError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-red-600 text-sm">{actionError}</p>
+                    </div>
                   )}
-                </div>
-              </CardContent>
+
+                  {pendingStatus && (
+                    <div className="flex justify-end">
+                      <Button 
+                        onClick={() => setShowConfirmDialog(true)}
+                        disabled={isSaving || actionLoading}
+                      >
+                        {isSaving || actionLoading ? "Updating..." : "Update Status"}
+                      </Button>
+                    </div>
+                  )}
+               </CardContent>
             </Card>
           </TabsContent>
 
@@ -609,8 +505,41 @@ export default function DoctorDetailPage() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
-      </div>
-    </DashboardLayout>
-  );
-}
+                 </Tabs>
+       </div>
+
+               {/* Confirmation Dialog */}
+        <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
+              <AlertDialogDescription>
+                {getStatusConfirmationMessage(pendingStatus)}
+                {verificationNotes && (
+                  <div className="mt-3 p-3 bg-muted rounded-md">
+                    <p className="text-sm font-medium mb-1">Verification Notes:</p>
+                    <p className="text-sm text-muted-foreground">{verificationNotes}</p>
+                  </div>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => {
+                setShowConfirmDialog(false);
+                setPendingStatus("");
+              }}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleConfirmStatusChange}
+                disabled={isSaving || actionLoading}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isSaving || actionLoading ? "Updating..." : "Confirm Change"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+     </DashboardLayout>
+   );
+ }

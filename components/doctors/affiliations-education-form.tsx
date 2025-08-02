@@ -22,6 +22,7 @@ import { ClinicScheduleDialog } from "./clinic-schedule-dialog";
 import type {
   SpecialistSchedule,
 } from "@/app/doctors/add/page";
+import { useRealClinics } from "@/hooks/useRealData";
 
 interface SchedulesData {
   schedules: SpecialistSchedule[];
@@ -37,6 +38,34 @@ export function AffiliationsEducationForm({
   onUpdate,
 }: SchedulesFormProps) {
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  
+  // Get clinics data for clinic name lookup
+  const { clinics, loading: clinicsLoading } = useRealClinics();
+  
+  // Function to get clinic name from clinic ID
+  const getClinicName = (clinicId: string) => {
+    if (clinicsLoading) {
+      return 'Loading...';
+    }
+    
+    // Fallback mapping for old hardcoded clinic IDs
+    const clinicIdMapping: { [key: string]: string } = {
+      'clin_cebu_central_id': 'Cebu Medical Center',
+      'clin_cebu_doctors_id': 'Metro Cebu Hospital',
+      'clin_lahug_uhc_id': 'Skin Care Clinic',
+      'clin_perpetual_succour_id': 'Cebu Medical Center'
+    };
+    
+    const clinic = clinics.find(c => c.id === clinicId);
+    
+    if (clinic) {
+      return clinic.name;
+    } else if (clinicId && clinicIdMapping[clinicId]) {
+      return clinicIdMapping[clinicId];
+    } else {
+      return `Clinic ID: ${clinicId}`;
+    }
+  };
 
   const handleAddSchedule = () => {
     setIsScheduleDialogOpen(true);
@@ -111,7 +140,7 @@ export function AffiliationsEducationForm({
                       <h4 className="font-medium">{schedule.practiceLocation?.roomOrUnit || 'No room specified'}</h4>
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge variant="secondary" className="text-xs">
-                          Clinic ID: {schedule.practiceLocation?.clinicId || 'No clinic'}
+                          {getClinicName(schedule.practiceLocation?.clinicId || '')}
                         </Badge>
                         {schedule.isActive ? (
                           <Badge variant="default" className="text-xs bg-green-100 text-green-800">

@@ -75,6 +75,7 @@ export class RealDataService {
         medicalLicenseNumber: doctorData.medicalLicense,
         prcExpiryDate: doctorData.prcExpiry,
         prcId: doctorData.prcId,
+        professionalFee: doctorData.professionalFee || 0,
         profileImageUrl: doctorData.profileImageUrl || '',
         specialty: doctorData.specialty,
         status: 'pending',
@@ -136,6 +137,15 @@ export class RealDataService {
       
       // Filter to show only specialists
       const specialists = allDoctors.filter(doctor => doctor.isSpecialist === true);
+      
+      // Debug: Log professional fee data
+      specialists.forEach(doctor => {
+        console.log(`Doctor ${doctor.firstName} ${doctor.lastName}:`, {
+          professionalFee: doctor.professionalFee,
+          type: typeof doctor.professionalFee
+        });
+      });
+      
       return specialists;
     } catch (error) {
       console.error('Error fetching doctors:', error);

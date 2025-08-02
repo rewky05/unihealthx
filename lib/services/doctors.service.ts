@@ -70,7 +70,7 @@ export class DoctorsService extends BaseFirebaseService<Doctor> {
       if (verifiedBy) {
         await this.logActivity({
           userId: verifiedBy,
-          userEmail: '', // You might want to pass this as well
+          userEmail: verifiedBy, // Using verifiedBy as both userId and userEmail
           action: `Doctor status changed to ${status}`,
           category: 'verification',
           targetId: doctorId,
