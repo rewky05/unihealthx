@@ -138,13 +138,7 @@ export class RealDataService {
       // Filter to show only specialists
       const specialists = allDoctors.filter(doctor => doctor.isSpecialist === true);
       
-      // Debug: Log professional fee data
-      specialists.forEach(doctor => {
-        console.log(`Doctor ${doctor.firstName} ${doctor.lastName}:`, {
-          professionalFee: doctor.professionalFee,
-          type: typeof doctor.professionalFee
-        });
-      });
+
       
       return specialists;
     } catch (error) {

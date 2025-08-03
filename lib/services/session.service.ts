@@ -61,8 +61,6 @@ export class SessionService {
       isActive: true,
     };
 
-    console.log('Creating session for user:', userEmail, 'sessionId:', sessionId);
-
     // Check concurrent sessions limit and cleanup old sessions
     await this.enforceConcurrentSessionsLimit(userId);
     
@@ -71,7 +69,6 @@ export class SessionService {
 
     // Store session in Firebase
     await set(ref(db, `sessions/${sessionId}`), sessionData);
-    console.log('Session stored in Firebase');
 
     // Update user's active sessions count
     await this.updateUserSessionCount(userId, 1);
@@ -126,21 +123,17 @@ export class SessionService {
    */
   async destroySession(sessionId: string): Promise<void> {
     try {
-      console.log('Destroying session:', sessionId);
       const sessionRef = ref(db, `sessions/${sessionId}`);
       const snapshot = await get(sessionRef);
 
       if (snapshot.exists()) {
         const sessionData: SessionData = snapshot.val();
-        console.log('Found session to destroy:', sessionData.userEmail);
         
         // Remove session
         await remove(sessionRef);
-        console.log('Session removed from Firebase');
         
         // Update user's session count
         await this.updateUserSessionCount(sessionData.userId, -1);
-        console.log('User session count updated');
         
         // Dispatch session destroyed event for real-time logout
         const event = new CustomEvent('sessionDestroyed', {
@@ -151,10 +144,7 @@ export class SessionService {
             destroyedAt: Date.now()
           }
         });
-        console.log('🚨 Dispatching session destroyed event:', event.detail);
         window.dispatchEvent(event);
-      } else {
-        console.log('Session not found in Firebase:', sessionId);
       }
     } catch (error) {
       console.error('Error destroying session:', error);
@@ -246,7 +236,6 @@ export class SessionService {
                 reason: 'expired'
               }
             });
-            console.log('🚨 Dispatching expired session destroyed event:', event.detail);
             window.dispatchEvent(event);
             
             cleanedCount++;
@@ -329,12 +318,10 @@ export class SessionService {
    */
   private async enforceConcurrentSessionsLimit(userId: string): Promise<void> {
     const userSessions = await this.getUserSessions(userId);
-    console.log(`User ${userId} has ${userSessions.length} active sessions, limit is ${this.config.maxConcurrentSessions}`);
     
     if (userSessions.length >= this.config.maxConcurrentSessions) {
       // Remove oldest session
       const oldestSession = userSessions.sort((a, b) => a.createdAt - b.createdAt)[0];
-      console.log(`Removing oldest session: ${oldestSession.sessionId} for user ${userId}`);
       await this.destroySession(oldestSession.sessionId);
     }
   }
@@ -361,10 +348,7 @@ export class SessionService {
   startAutoCleanup(): NodeJS.Timeout {
     return setInterval(async () => {
       try {
-        const cleanedCount = await this.cleanupExpiredSessions();
-        if (cleanedCount > 0) {
-          console.log(`Cleaned up ${cleanedCount} expired sessions`);
-        }
+        await this.cleanupExpiredSessions();
       } catch (error) {
         console.error('Error in auto cleanup:', error);
       }

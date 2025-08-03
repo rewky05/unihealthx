@@ -24,6 +24,7 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle,
+  ArrowRight,
 } from "lucide-react";
 
 
@@ -77,6 +78,8 @@ export default function DashboardPage() {
       change: "+12%",
       changeType: "positive" as const,
       icon: Users,
+      isClickable: true,
+      href: "/doctors" as const,
     },
     {
       title: "Verified Specialists",
@@ -84,13 +87,16 @@ export default function DashboardPage() {
       change: "+8%",
       changeType: "positive" as const,
       icon: UserCheck,
+      isClickable: false,
     },
     {
-      title: "Pending Reviews",
+      title: "Pending Verifications",
       value: specialists.filter(d => d.status === 'pending').length,
       change: "-5%",
       changeType: "negative" as const,
       icon: UserX,
+      isClickable: true,
+      href: "/doctors?status=pending" as const,
     },
     {
       title: "Active Clinics",
@@ -98,6 +104,7 @@ export default function DashboardPage() {
       change: "+3%",
       changeType: "positive" as const,
       icon: Calendar,
+      isClickable: false,
     },
   ] : [];
 
@@ -121,76 +128,55 @@ export default function DashboardPage() {
               Welcome back! Here's what's happening with your specialists.
             </p>
           </div>
-          {/* <Button asChild>
-            <Link href="/doctors/add">Add Specialist</Link>
-          </Button> */}
         </div>
-
-        {/* Quick Actions */}
-        <Card className="card-shadow">
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>
-              Frequently used administrative functions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <Button className="h-20 flex-col space-y-2">
-                <Link
-                  href="/doctors?status=pending"
-                  className="flex flex-col items-center space-y-2"
-                >
-                  <UserCheck className="h-6 w-6" />
-                  <span>Verify Doctor</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-20">
-                <Link
-                  href="/doctors/add"
-                  className="flex flex-col items-center space-y-2"
-                >
-                  <Users className="h-6 w-6" />
-                  <span>Add Doctor</span>
-                </Link>
-              </Button>
-              {/* <Button variant="outline" className="h-20 flex-col space-y-2">
-                <Calendar className="h-6 w-6" />
-                <span>Manage Schedules</span>
-              </Button> */}
-              <Button variant="outline" className="h-20">
-                <Link
-                  href="/feedback#review-feedback"
-                  className="flex flex-col items-center space-y-2"
-                >
-                  <MessageSquare className="h-6 w-6" />
-                  <span>Review Feedback</span>
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (
-            <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                <stat.icon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className={`text-xs ${
-                  stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {stat.change} from last month
-                </p>
-              </CardContent>
+            <Card 
+              key={stat.title} 
+              className={stat.isClickable 
+                ? "cursor-pointer hover:shadow-lg transition-all duration-200 hover:border-primary/50 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100" 
+                : "bg-white"
+              }
+            >
+              {stat.isClickable ? (
+                <Link href={stat.href!} className="block">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-blue-900">{stat.title}</CardTitle>
+                    <div className="flex items-center space-x-1">
+                      <stat.icon className="h-4 w-4 text-blue-600" />
+                      <ArrowRight className="h-3 w-3 text-blue-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-900">{stat.value}</div>
+                    <p className={`text-xs ${
+                      stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {stat.change} from last month
+                    </p>
+                  </CardContent>
+                </Link>
+              ) : (
+                <>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                    <stat.icon className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stat.value}</div>
+                    <p className={`text-xs ${
+                      stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {stat.change} from last month
+                    </p>
+                  </CardContent>
+                </>
+              )}
             </Card>
           ))}
         </div>
-
 
         <div className="grid gap-4 md:grid-cols-2">
           {/* Recent Activity */}

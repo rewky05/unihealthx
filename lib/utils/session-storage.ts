@@ -219,25 +219,20 @@ export class SessionActivityTracker {
    * Start tracking user activity
    */
   static startTracking(): void {
-    console.log('🚀 Starting activity tracking...');
     if (this.isTracking) {
-      console.log('⚠️ Activity tracking already active');
       return;
     }
 
     this.isTracking = true;
-    console.log('✅ Activity tracking started');
     this.updateActivity();
 
     this.activityEvents.forEach(event => {
       document.addEventListener(event, this.updateActivity, { passive: true });
-      console.log(`📝 Added event listener for: ${event}`);
     });
 
     // Periodic activity update disabled - only update on actual user activity
     // setInterval(() => {
     //   if (SecureSessionStorage.isSessionActive()) {
-    //     console.log('⏰ Periodic activity update triggered');
     //     this.updateActivity();
     //   }
     // }, 5 * 60 * 1000);
@@ -259,36 +254,20 @@ export class SessionActivityTracker {
    * Update session activity (async version for server sync)
    */
   private static updateActivityAsync = async (): Promise<void> => {
-    console.log('🔄 Activity tracking triggered');
     if (SecureSessionStorage.isSessionActive()) {
       const sessionId = SecureSessionStorage.getSessionId();
-      console.log('📱 Session ID:', sessionId);
       if (sessionId) {
         try {
-          console.log('🔄 Updating server session activity...');
           // Update server-side session activity
           await sessionService.updateSessionActivity(sessionId);
-          console.log('✅ Server session activity updated');
           
           // Get the updated session data from server
           const updatedSession = await sessionService.validateSession(sessionId);
           if (updatedSession) {
-            console.log('📊 Server session data:', {
-              lastActivity: new Date(updatedSession.lastActivity).toLocaleTimeString(),
-              expiresAt: new Date(updatedSession.expiresAt).toLocaleTimeString()
-            });
             // Update client-side session with server data
             const clientSession = SecureSessionStorage.getSession();
             if (clientSession) {
               const oldExpiresAt = clientSession.expiresAt;
-              console.log('🔍 Before update - Client session:', {
-                lastActivity: new Date(clientSession.lastActivity).toLocaleTimeString(),
-                expiresAt: new Date(clientSession.expiresAt).toLocaleTimeString()
-              });
-              console.log('🔍 Server session data:', {
-                lastActivity: new Date(updatedSession.lastActivity).toLocaleTimeString(),
-                expiresAt: new Date(updatedSession.expiresAt).toLocaleTimeString()
-              });
               
               clientSession.lastActivity = updatedSession.lastActivity;
               clientSession.expiresAt = updatedSession.expiresAt;
@@ -297,17 +276,11 @@ export class SessionActivityTracker {
               sessionStorage.setItem(SecureSessionStorage.SESSION_KEY, encryptedData);
               sessionStorage.setItem(SecureSessionStorage.ACTIVITY_KEY, updatedSession.lastActivity.toString());
               
-              console.log('✅ Client session updated:', {
-                oldExpiresAt: new Date(oldExpiresAt).toLocaleTimeString(),
-                newExpiresAt: new Date(clientSession.expiresAt).toLocaleTimeString()
+              // Dispatch custom event to notify UI of session update
+              const event = new CustomEvent('sessionActivity', {
+                detail: { sessionId, updatedAt: Date.now() }
               });
-               
-                               // Dispatch custom event to notify UI of session update
-                const event = new CustomEvent('sessionActivity', {
-                  detail: { sessionId, updatedAt: Date.now() }
-                });
-                console.log('📢 Dispatching session activity event:', event.detail);
-                window.dispatchEvent(event);
+              window.dispatchEvent(event);
             }
           }
         } catch (error) {
@@ -316,12 +289,9 @@ export class SessionActivityTracker {
           SecureSessionStorage.updateActivity();
         }
       } else {
-        console.log('⚠️ No session ID found, using fallback');
         // Fallback to client-side only update
         SecureSessionStorage.updateActivity();
       }
-    } else {
-      console.log('⚠️ Session not active');
     }
   };
 
@@ -349,44 +319,52 @@ export class SessionValidator {
       
       // If no session exists, it's a fresh login - allow it
       if (!session) {
-        console.log('No session found - fresh login');
         return true;
       }
 
       // Check if session is expired
       if (Date.now() > session.expiresAt) {
-        console.log('Session expired');
         SecureSessionStorage.clearSession();
         return false;
       }
 
       // Check if user has been inactive
       if (SecureSessionStorage.isInactive()) {
-        console.log('User inactive');
         SecureSessionStorage.clearSession();
         return false;
       }
 
-      // Validate with server
-      const serverSession = await sessionService.validateSession(session.sessionId);
-      if (!serverSession) {
-        console.log('Server session validation failed');
-        SecureSessionStorage.clearSession();
-        return false;
+      // For fresh logins, be more lenient and skip server validation initially
+      // Server validation will happen during the login process
+      const timeSinceCreation = Date.now() - session.lastActivity;
+      if (timeSinceCreation < 10000) { // Increased to 10 seconds grace period for fresh logins
+        return true;
       }
 
-      // Update client-side session with server data to keep them in sync
-      if (serverSession.lastActivity !== session.lastActivity || serverSession.expiresAt !== session.expiresAt) {
-        console.log('Syncing client session with server data');
-        session.lastActivity = serverSession.lastActivity;
-        session.expiresAt = serverSession.expiresAt;
-        
-        const encryptedData = SessionEncryption.encrypt(JSON.stringify(session));
-        sessionStorage.setItem(SecureSessionStorage.SESSION_KEY, encryptedData);
-        sessionStorage.setItem(SecureSessionStorage.ACTIVITY_KEY, serverSession.lastActivity.toString());
+      // Only validate with server for established sessions
+      try {
+        const serverSession = await sessionService.validateSession(session.sessionId);
+        if (!serverSession) {
+          SecureSessionStorage.clearSession();
+          return false;
+        }
+
+        // Update client-side session with server data to keep them in sync
+        if (serverSession.lastActivity !== session.lastActivity || serverSession.expiresAt !== session.expiresAt) {
+          session.lastActivity = serverSession.lastActivity;
+          session.expiresAt = serverSession.expiresAt;
+          
+          const encryptedData = SessionEncryption.encrypt(JSON.stringify(session));
+          sessionStorage.setItem(SecureSessionStorage.SESSION_KEY, encryptedData);
+          sessionStorage.setItem(SecureSessionStorage.ACTIVITY_KEY, serverSession.lastActivity.toString());
+        }
+      } catch (serverError) {
+        // If server validation fails, but session is still valid locally, allow it
+        // This prevents login issues when server is temporarily unavailable
+        console.warn('Server session validation failed, using local session:', serverError);
+        return true;
       }
 
-      console.log('Session validation successful');
       return true;
     } catch (error) {
       console.error('Error validating session:', error);

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Plus, Edit, Trash2, Clock, MapPin, Building } from "lucide-react";
 import { ClinicScheduleDialog } from "../doctors/clinic-schedule-dialog";
 import { useRealClinics } from "@/hooks/useRealData";
+import { formatDateToText } from "@/lib/utils";
 
 export interface SpecialistSchedule {
   id?: string;
@@ -96,13 +97,7 @@ export function ScheduleCard({
 
   // Helper function to format date consistently
   const formatDate = (dateString: string) => {
-    // Parse the date as local date to avoid timezone conversion
-    const [year, month, day] = dateString.split('-').map(Number);
-    const date = new Date(year, month - 1, day); // month is 0-indexed
-    const monthStr = (date.getMonth() + 1).toString().padStart(2, '0');
-    const dayStr = date.getDate().toString().padStart(2, '0');
-    const yearStr = date.getFullYear();
-    return `${monthStr}/${dayStr}/${yearStr}`;
+    return formatDateToText(dateString);
   };
 
   const handleAdd = () => {
@@ -207,7 +202,7 @@ export function ScheduleCard({
                   key={schedule.id}
                   className="p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
                 >
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-2">
                       <Building className="h-4 w-4 text-primary" /> 
                       <span className="font-medium text-sm">{schedule.practiceLocation?.roomOrUnit || 'No room specified'}</span>

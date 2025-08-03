@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Building, Plus, Edit, Trash2, Calendar, Clock, MapPin, User } from "lucide-react";
 import { ClinicScheduleDialog } from "../doctors/clinic-schedule-dialog";
+import { formatDateToText } from "@/lib/utils";
 
 export interface ClinicAffiliation {
   id?: string;
@@ -64,7 +65,7 @@ export function ClinicCard({
 
   const formatDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString();
+      return formatDateToText(dateString);
     } catch {
       return dateString;
     }

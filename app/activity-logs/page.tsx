@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRealActivityLogs } from '@/hooks/useRealData';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
+import { formatDateTimeToText } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -148,7 +149,7 @@ export default function ActivityLogsPage() {
     } else if (diffInHours < 24) {
       return `${diffInHours} hours ago`;
     } else {
-      return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return formatDateTimeToText(date);
     }
   };
 

@@ -285,6 +285,85 @@ export function useDoctorRating(doctorId: string | null) {
   };
 }
 
+// Hook for clinic's average rating
+export function useClinicRating(clinicId: string | null) {
+  const [rating, setRating] = useState<{
+    averageRating: number;
+    totalFeedback: number;
+    ratingDistribution: Record<number, number>;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchRating = useCallback(async () => {
+    if (!clinicId) {
+      setRating(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const ratingData = await feedbackService.getClinicAverageRating(clinicId);
+      setRating(ratingData);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [clinicId]);
+
+  useEffect(() => {
+    fetchRating();
+  }, [fetchRating]);
+
+  return {
+    rating,
+    loading,
+    error,
+    refresh: fetchRating
+  };
+}
+
+// Hook for all clinics with ratings
+export function useClinicsWithRatings() {
+  const [clinics, setClinics] = useState<{
+    clinicId: string;
+    clinicName: string;
+    averageRating: number;
+    totalFeedback: number;
+  }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchClinics = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const clinicsData = await feedbackService.getClinicsWithRatings();
+      setClinics(clinicsData);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchClinics();
+  }, [fetchClinics]);
+
+  return {
+    clinics,
+    loading,
+    error,
+    refresh: fetchClinics
+  };
+}
+
 // Hook for trending feedback tags
 export function useTrendingTags(limit: number = 10) {
   const [tags, setTags] = useState<{ tag: string; count: number }[]>([]);

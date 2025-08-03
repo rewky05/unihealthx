@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Building, Save, Loader2, Clock, Phone, Mail, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 interface ClinicSpecificSettingsProps {
   onUnsavedChanges: (hasChanges: boolean) => void;
@@ -86,6 +87,8 @@ export function ClinicSpecificSettings({ onUnsavedChanges }: ClinicSpecificSetti
     servicesOffered: [],
     defaultGeneralist: ''
   });
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingClinic, setPendingClinic] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedClinic) {
@@ -116,12 +119,24 @@ export function ClinicSpecificSettings({ onUnsavedChanges }: ClinicSpecificSetti
 
   const handleClinicSelect = (clinicId: string) => {
     if (originalData && JSON.stringify(formData) !== JSON.stringify(originalData)) {
-      const confirmLeave = window.confirm(
-        'You have unsaved changes. Are you sure you want to switch clinics?'
-      );
-      if (!confirmLeave) return;
+      setPendingClinic(clinicId);
+      setShowConfirmDialog(true);
+      return;
     }
     setSelectedClinic(clinicId);
+  };
+
+  const confirmClinicChange = () => {
+    if (pendingClinic) {
+      setSelectedClinic(pendingClinic);
+      setPendingClinic(null);
+    }
+    setShowConfirmDialog(false);
+  };
+
+  const cancelClinicChange = () => {
+    setPendingClinic(null);
+    setShowConfirmDialog(false);
   };
 
   const handleOperatingHoursChange = (day: string, field: string, value: any) => {
@@ -403,6 +418,20 @@ export function ClinicSpecificSettings({ onUnsavedChanges }: ClinicSpecificSetti
           </Card>
         </div>
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        title="Unsaved Changes"
+        description="You have unsaved changes. Are you sure you want to switch clinics?"
+        confirmText="Switch Clinic"
+        cancelText="Stay"
+        variant="destructive"
+        loading={false}
+        onConfirm={confirmClinicChange}
+        onCancel={cancelClinicChange}
+      />
     </div>
   );
 }

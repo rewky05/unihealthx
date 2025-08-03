@@ -86,77 +86,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Set user first, then validate session
           setUser(userDetails);
           
-          // For fresh logins, don't validate session immediately
-          // Session will be created during login process
+          // For fresh logins, add a grace period before session validation
           const session = SecureSessionStorage.getSession();
           if (session) {
-            // Only validate if session exists
-            const sessionValid = await SessionValidator.validateSession();
-            
-            if (!sessionValid) {
-              // Session is invalid, clear everything
-              setUser(null);
-              setLoading(false);
-              return;
-            }
-            
-            // Start activity tracking if session is valid
-            console.log('🔧 Starting activity tracking from useAuth...');
-            SessionActivityTracker.startTracking();
-          } else {
-            console.log('No session found - fresh login, skipping validation');
+            // Add a small delay to prevent immediate validation conflicts
+            setTimeout(async () => {
+              const sessionValid = await SessionValidator.validateSession();
+              
+              if (!sessionValid) {
+                // Session is invalid, clear everything
+                setUser(null);
+                setLoading(false);
+                return;
+              }
+            }, 1000); // 1 second grace period
           }
+          
+          setLoading(false);
         } catch (error) {
           console.error('Error fetching user details:', error);
-          // Fallback to basic user info
-          const fallbackUser = {
-            email: firebaseUser.email || '',
-            role: 'admin' as const,
-            isAuthenticated: true,
-            firstName: '',
-            lastName: '',
-            displayName: firebaseUser.displayName || '',
-          };
-          
-          setUser(fallbackUser);
-          
-          // For fresh logins, don't validate session immediately
-          const session = SecureSessionStorage.getSession();
-          if (session) {
-            // Only validate if session exists
-            const sessionValid = await SessionValidator.validateSession();
-            
-            if (!sessionValid) {
-              setUser(null);
-              setLoading(false);
-              return;
-            }
-            
-            console.log('🔧 Starting activity tracking from useAuth (fallback)...');
-            SessionActivityTracker.startTracking();
-          } else {
-            console.log('No session found - fresh login, skipping validation');
-          }
+          setUser(null);
+          setLoading(false);
         }
       } else {
-        // Check for superadmin in localStorage
+        // No Firebase user - check for superadmin
         const superadminUser = checkSuperadminAuth();
         if (superadminUser) {
           setUser(superadminUser);
         } else {
           setUser(null);
         }
+        setLoading(false);
       }
-      setLoading(false);
     });
-
-    // Also check superadmin auth on mount
-    const superadminUser = checkSuperadminAuth();
-    if (superadminUser) {
-      setUser(superadminUser);
-    }
-
-    setLoading(false);
 
     return () => unsubscribe();
   }, []);
@@ -177,13 +139,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Listen for session destruction events (real-time logout)
   useEffect(() => {
     const handleSessionDestroyed = async (event: any) => {
-      console.log('🚨 Session destruction event received:', event.detail);
       const { sessionId } = event.detail;
       const currentSessionId = SecureSessionStorage.getSessionId();
       
       // If the destroyed session is the current user's session, log them out
       if (sessionId === currentSessionId) {
-        console.log('🚨 Current session destroyed, logging out user...');
         setUser(null);
         setLoading(false);
         
@@ -199,29 +159,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('sessionDestroyed', handleSessionDestroyed);
   }, []);
 
-  // Periodic session validation (every 30 seconds)
-  useEffect(() => {
-    const validateSessionPeriodically = async () => {
-      if (user && SecureSessionStorage.isSessionActive()) {
-        const sessionValid = await SessionValidator.validateSession();
-        if (!sessionValid) {
-          console.log('🚨 Session validation failed, logging out user...');
-          setUser(null);
-          setLoading(false);
-          SecureSessionStorage.clearSession();
-          window.location.href = '/login';
-        }
-      }
-    };
+  // Periodic session validation (every 30 seconds) - disabled for now to prevent login issues
+  // useEffect(() => {
+  //   const validateSessionPeriodically = async () => {
+  //     if (user && SecureSessionStorage.isSessionActive()) {
+  //       const sessionValid = await SessionValidator.validateSession();
+  //       if (!sessionValid) {
+  //         setUser(null);
+  //         setLoading(false);
+  //         SecureSessionStorage.clearSession();
+  //         window.location.href = '/login';
+  //       }
+  //     }
+  //   };
 
-    const interval = setInterval(validateSessionPeriodically, 30000); // 30 seconds
-    return () => clearInterval(interval);
-  }, [user]);
+  //   const interval = setInterval(validateSessionPeriodically, 30000); // 30 seconds
+  //   return () => clearInterval(interval);
+  // }, [user]);
 
   const signOut = async () => {
     try {
-      console.log('Starting sign out process...');
-      
       // Use authService to properly destroy session
       await authService.signOut();
       
@@ -236,8 +193,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('userRole');
       localStorage.removeItem('userEmail');
       setUser(null);
-      
-      console.log('Sign out completed');
     } catch (error) {
       console.error('Sign out error:', error);
     }

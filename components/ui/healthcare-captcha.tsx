@@ -48,8 +48,11 @@ export function HealthcareCaptcha({ onComplete, onReset }: HealthcareCaptchaProp
       setError('Incorrect. Please try again.');
       
       if (newAttempts >= 3) {
-        // Reload the page after 3 failed attempts
-        window.location.reload();
+        // Instead of reloading, just show a message and reset
+        setError('Too many failed attempts. Please try a new captcha.');
+        setTimeout(() => {
+          handleNewCaptcha();
+        }, 2000);
         return;
       }
       

@@ -23,6 +23,7 @@ import type {
   SpecialistSchedule,
 } from "@/app/doctors/add/page";
 import { useRealClinics } from "@/hooks/useRealData";
+import { formatDateToText } from "@/lib/utils";
 
 interface SchedulesData {
   schedules: SpecialistSchedule[];
@@ -166,9 +167,9 @@ export function AffiliationsEducationForm({
                           </div>
                           <div className="flex items-center text-xs text-muted-foreground">
                             <MapPin className="h-3 w-3 mr-1" />
-                            <span>
-                              Valid from {schedule.validFrom ? new Date(schedule.validFrom).toLocaleDateString() : 'Not set'}
-                            </span>
+                                                         <span>
+                               Valid from {schedule.validFrom ? formatDateToText(schedule.validFrom) : 'Not set'}
+                             </span>
                           </div>
                         </div>
                       )}

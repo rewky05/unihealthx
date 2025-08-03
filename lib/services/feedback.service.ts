@@ -355,6 +355,88 @@ export class FeedbackService extends BaseFirebaseService<Feedback> {
   }
 
   /**
+   * Get clinic's average rating
+   */
+  async getClinicAverageRating(clinicId: string): Promise<{
+    averageRating: number;
+    totalFeedback: number;
+    ratingDistribution: Record<number, number>;
+  }> {
+    try {
+      const feedback = await this.getFeedbackByClinic(clinicId);
+
+      if (feedback.length === 0) {
+        return {
+          averageRating: 0,
+          totalFeedback: 0,
+          ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        };
+      }
+
+      const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      let totalRating = 0;
+
+      feedback.forEach(f => {
+        ratingDistribution[f.rating]++;
+        totalRating += f.rating;
+      });
+
+      return {
+        averageRating: totalRating / feedback.length,
+        totalFeedback: feedback.length,
+        ratingDistribution
+      };
+    } catch (error) {
+      this.handleError('getClinicAverageRating', error);
+    }
+  }
+
+  /**
+   * Get all clinics with their average ratings
+   */
+  async getClinicsWithRatings(): Promise<{
+    clinicId: string;
+    clinicName: string;
+    averageRating: number;
+    totalFeedback: number;
+  }[]> {
+    try {
+      const snapshot = await get(this.collectionRef);
+      
+      if (!snapshot.exists()) {
+        return [];
+      }
+
+      const feedback = Object.values(snapshot.val()) as Feedback[];
+      
+      // Group feedback by clinic
+      const clinicGroups = feedback.reduce((acc, f) => {
+        if (!acc[f.clinicId]) {
+          acc[f.clinicId] = {
+            clinicId: f.clinicId,
+            clinicName: f.clinicName || 'Unknown Clinic',
+            ratings: [],
+            totalRating: 0
+          };
+        }
+        acc[f.clinicId].ratings.push(f.rating);
+        acc[f.clinicId].totalRating += f.rating;
+        return acc;
+      }, {} as Record<string, { clinicId: string; clinicName: string; ratings: number[]; totalRating: number }>);
+
+      // Calculate average ratings for each clinic
+      return Object.values(clinicGroups).map(clinic => ({
+        clinicId: clinic.clinicId,
+        clinicName: clinic.clinicName,
+        averageRating: clinic.totalRating / clinic.ratings.length,
+        totalFeedback: clinic.ratings.length
+      }));
+    } catch (error) {
+      this.handleError('getClinicsWithRatings', error);
+    }
+  }
+
+  /**
    * Get recent feedback
    */
   async getRecentFeedback(limit: number = 10): Promise<Feedback[]> {

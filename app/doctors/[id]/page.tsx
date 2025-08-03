@@ -11,7 +11,7 @@ import { useRealDoctors } from "@/hooks/useRealData";
 import { useScheduleData } from "@/hooks/use-schedule-data";
 import { useDoctorActions } from "@/hooks/useDoctors";
 import { useAuth } from "@/hooks/useAuth";
-import { formatPhilippinePeso } from '@/lib/utils';
+import { formatPhilippinePeso, formatDateToText, formatDateTimeToText } from '@/lib/utils';
 import {
   Card,
   CardContent,
@@ -243,7 +243,7 @@ export default function DoctorDetailPage() {
                   <span className="capitalize">{doctor.status || 'pending'}</span>
                 </Badge>
                 <span className="text-sm text-muted-foreground">
-                  Joined {new Date(doctor.createdAt || Date.now()).toLocaleDateString()}
+                  Joined {formatDateToText(doctor.createdAt || new Date())}
                 </span>
               </div>
             </div>
@@ -261,11 +261,11 @@ export default function DoctorDetailPage() {
         </div>
 
                  <Tabs defaultValue="overview" className="space-y-6">
-           <TabsList className="grid w-full grid-cols-4">
+           <TabsList className="grid w-full grid-cols-3">
              <TabsTrigger value="overview">Overview</TabsTrigger>
              <TabsTrigger value="schedules">Schedules</TabsTrigger>
              <TabsTrigger value="verification">Verification</TabsTrigger>
-             <TabsTrigger value="activity">Activity</TabsTrigger>
+             {/* <TabsTrigger value="activity">Activity</TabsTrigger> */}
            </TabsList>
 
           {/* Overview Tab */}
@@ -296,7 +296,7 @@ export default function DoctorDetailPage() {
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>
                       Born{" "}
-                      {doctor.dateOfBirth ? new Date(doctor.dateOfBirth).toLocaleDateString() : 'Not specified'}
+                      {doctor.dateOfBirth ? formatDateToText(doctor.dateOfBirth) : 'Not specified'}
                     </span>
                   </div>
                                      <div className="grid grid-cols-2 gap-4 pt-2">
@@ -335,7 +335,7 @@ export default function DoctorDetailPage() {
                     <p className="text-sm font-medium text-muted-foreground">
                       PRC Expiry
                     </p>
-                    <p>{doctor.prcExpiryDate ? new Date(doctor.prcExpiryDate).toLocaleDateString() : 'Not specified'}</p>
+                    <p>{doctor.prcExpiryDate ? formatDateToText(doctor.prcExpiryDate) : 'Not specified'}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
@@ -349,15 +349,15 @@ export default function DoctorDetailPage() {
                     </p>
                     <p>{formatPhilippinePeso(doctor.professionalFee)}</p>
                     {/* Debug info - remove in production */}
-                    <p className="text-xs text-muted-foreground">
+                    {/* <p className="text-xs text-muted-foreground">
                       Raw value: {JSON.stringify(doctor.professionalFee)}
-                    </p>
+                    </p> */}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
                       Last Login
                     </p>
-                    <p>{doctor.lastLogin ? new Date(doctor.lastLogin).toLocaleString() : 'Not specified'}</p>
+                    <p>{doctor.lastLogin ? formatDateTimeToText(doctor.lastLogin) : 'Not specified'}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -475,7 +475,7 @@ export default function DoctorDetailPage() {
           </TabsContent>
 
           {/* Activity Tab */}
-          <TabsContent value="activity" className="space-y-6">
+          {/* <TabsContent value="activity" className="space-y-6">
             <Card className="card-shadow">
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -504,7 +504,7 @@ export default function DoctorDetailPage() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
                  </Tabs>
        </div>
 

@@ -15,14 +15,10 @@ export function ProtectedRoute({ children, requireSuperadmin = false }: Protecte
   const router = useRouter();
 
   useEffect(() => {
-    console.log('ProtectedRoute - Auth state:', { user, loading, isSuperadmin: isSuperadmin() });
-    
     if (!loading) {
       if (!user) {
-        console.log('No user found, redirecting to login');
         router.push('/login');
       } else if (requireSuperadmin && !isSuperadmin()) {
-        console.log('User is not superadmin, redirecting to dashboard');
         router.push('/dashboard');
       }
     }
@@ -37,15 +33,12 @@ export function ProtectedRoute({ children, requireSuperadmin = false }: Protecte
   }
 
   if (!user) {
-    console.log('ProtectedRoute - No user, returning null');
     return null; // Will redirect to login
   }
 
   if (requireSuperadmin && !isSuperadmin()) {
-    console.log('ProtectedRoute - User not superadmin, returning null');
     return null; // Will redirect to dashboard
   }
 
-  console.log('ProtectedRoute - User authenticated, rendering children');
   return <>{children}</>;
 } 

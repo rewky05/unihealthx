@@ -112,7 +112,7 @@ export function PersonalInfoForm({ data, onUpdate }: PersonalInfoFormProps) {
               <Input
                 id="firstName"
                 placeholder="Enter first name"
-                value={data.firstName || undefined}
+                value={data.firstName || ''}
                 onChange={(e) => handleInputChange("firstName", e.target.value)}
                 required
               />
@@ -136,7 +136,7 @@ export function PersonalInfoForm({ data, onUpdate }: PersonalInfoFormProps) {
               <Input
                 id="lastName"
                 placeholder="Enter last name"
-                value={data.lastName || undefined}
+                value={data.lastName || ''}
                 onChange={(e) => handleInputChange("lastName", e.target.value)}
                 required
               />

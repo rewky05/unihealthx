@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Building, Plus, Trash2, Calendar, Clock, MapPin, Check, ChevronsUpDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDateToText } from '@/lib/utils';
 import type { SpecialistSchedule } from '@/app/doctors/add/page';
 import { useRealClinics } from '@/hooks/useRealData';
 
@@ -108,10 +108,7 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
       }
     }
     
-    console.log('Test slotTemplate generation:');
-    console.log('Expected slots: 8:00 AM, 8:30 AM, 9:00 AM, 9:30 AM');
-    console.log('Generated slots:', Object.keys(testSlotTemplate));
-    console.log('Full testSlotTemplate:', testSlotTemplate);
+
     
     return testSlotTemplate;
   };
@@ -154,12 +151,7 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
 
   // Helper function to format date consistently
   const formatDate = (dateString: string) => {
-    const [year, month, day] = dateString.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    const monthStr = (date.getMonth() + 1).toString().padStart(2, '0');
-    const dayStr = date.getDate().toString().padStart(2, '0');
-    const yearStr = date.getFullYear();
-    return `${monthStr}/${dayStr}/${yearStr}`;
+    return formatDateToText(dateString);
   };
 
   const resetForm = () => {
@@ -255,10 +247,7 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
         }
       }
       
-      // Debug: Log the generated slotTemplate (for development only)
-      console.log('Generated slotTemplate:', slotTemplate);
-      console.log('Start time:', formData.startTime, 'End time:', formData.endTime, 'Duration:', formData.slotDurationMinutes);
-      console.log('Start minutes:', startMinutes, 'End minutes:', endMinutes);
+
       
 
       
@@ -314,18 +303,6 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
   };
 
   const handleSave = () => {
-    // Debug: Log what's being saved (for development only)
-    console.log('Saving schedules:', localSchedules);
-    console.log('Number of schedules:', localSchedules.length);
-    localSchedules.forEach((schedule, index) => {
-      console.log(`Schedule ${index + 1}:`, {
-        id: schedule.id,
-        slotTemplate: schedule.slotTemplate,
-        slotTemplateKeys: Object.keys(schedule.slotTemplate || {}),
-        slotTemplateCount: Object.keys(schedule.slotTemplate || {}).length
-      });
-    });
-    
     // Save all local schedules at once
     onSave(localSchedules);
     onOpenChange(false);
@@ -541,7 +518,7 @@ export function ClinicScheduleDialog({ open, onOpenChange, existingSchedules, on
                          <div><strong>Room:</strong> {schedule.practiceLocation?.roomOrUnit || 'Not specified'}</div>
                          <div><strong>Days:</strong> {getDayNames(schedule.recurrence?.dayOfWeek || [])}</div>
                          <div><strong>Time Slots:</strong> {Object.keys(schedule.slotTemplate || {}).length} slots</div>
-                         <div><strong>Valid From:</strong> {schedule.validFrom ? new Date(schedule.validFrom).toLocaleDateString() : 'Not set'}</div>
+                                                   <div><strong>Valid From:</strong> {schedule.validFrom ? formatDateToText(schedule.validFrom) : 'Not set'}</div>
                        </div>
                     </div>
                   ))}

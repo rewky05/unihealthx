@@ -2,6 +2,7 @@
 
 import { useRealHealthcareData } from '@/hooks/useRealData';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
+import { formatDateToText } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -157,7 +158,7 @@ export default function RealDataDemo() {
                   </div>
                   <p className="text-sm">{fb.comments}</p>
                   <div className="text-xs text-muted-foreground mt-2">
-                    {fb.clinicName} • {new Date(fb.timestamp).toLocaleDateString()}
+                    {fb.clinicName} • {formatDateToText(fb.timestamp)}
                   </div>
                 </div>
               ))}

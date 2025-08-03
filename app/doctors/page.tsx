@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRealDoctors, useRealClinics } from "@/hooks/useRealData";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { formatPhilippinePeso, formatDateToText } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -54,21 +55,33 @@ import {
 import Link from "next/link";
 
 const specialties = [
-  "All",
+  "All Specialties",
   "Cardiology",
   "Pediatrics",
   "Dermatology",
   "Orthopedics",
   "Neurology",
 ];
-const statuses = ["All", "Verified", "Pending", "Suspended"];
+const statuses = ["All Status", "Verified", "Pending", "Suspended"];
+const sortOptions = [
+  { value: 'name-asc', label: 'Name A-Z' },
+  { value: 'name-desc', label: 'Name Z-A' },
+  { value: 'specialty-asc', label: 'Specialty A-Z' },
+  { value: 'specialty-desc', label: 'Specialty Z-A' },
+  { value: 'date-desc', label: 'Newest First' },
+  { value: 'date-asc', label: 'Oldest First' },
+  { value: 'status-asc', label: 'Status A-Z' },
+  { value: 'status-desc', label: 'Status Z-A' },
+];
 
 export default function DoctorsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSpecialty, setSelectedSpecialty] = useState("All");
+  const [selectedSpecialty, setSelectedSpecialty] = useState("All Specialties");
+  const [selectedClinic, setSelectedClinic] = useState("All Clinics");
+  const [selectedSort, setSelectedSort] = useState("date-desc");
   const [selectedStatus, setSelectedStatus] = useState(() => {
     const statusParam = searchParams.get("status");
     if (statusParam) {
@@ -79,7 +92,7 @@ export default function DoctorsPage() {
         return normalizedParam;
       }
     }
-    return "All";
+    return "All Status";
   });
 
   // Real Firebase data
@@ -100,7 +113,7 @@ export default function DoctorsPage() {
     const currentParams = new URLSearchParams(searchParams.toString());
     let changed = false;
 
-    if (selectedStatus !== "All") {
+    if (selectedStatus !== "All Status") {
       if (currentParams.get("status") !== selectedStatus.toLowerCase()) {
         currentParams.set("status", selectedStatus.toLowerCase());
         changed = true;
@@ -122,12 +135,39 @@ export default function DoctorsPage() {
               (doctor.email && doctor.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
       doctor.specialty.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSpecialty =
-      selectedSpecialty === "All" || doctor.specialty === selectedSpecialty;
+      selectedSpecialty === "All Specialties" || doctor.specialty === selectedSpecialty;
     const matchesStatus =
-      selectedStatus === "All" ||
+      selectedStatus === "All Status" ||
       doctor.status === selectedStatus.toLowerCase();
+    const matchesClinic =
+      selectedClinic === "All Clinics" ||
+      (doctor.clinicAffiliations && doctor.clinicAffiliations.includes(selectedClinic));
 
-    return matchesSearch && matchesSpecialty && matchesStatus;
+    return matchesSearch && matchesSpecialty && matchesStatus && matchesClinic;
+  });
+
+  // Sort the filtered doctors
+  const sortedDoctors = [...filteredDoctors].sort((a, b) => {
+    switch (selectedSort) {
+      case 'name-asc':
+        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+      case 'name-desc':
+        return `${b.firstName} ${b.lastName}`.localeCompare(`${a.firstName} ${a.lastName}`);
+      case 'specialty-asc':
+        return (a.specialty || '').localeCompare(b.specialty || '');
+      case 'specialty-desc':
+        return (b.specialty || '').localeCompare(a.specialty || '');
+      case 'date-desc':
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      case 'date-asc':
+        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+      case 'status-asc':
+        return (a.status || '').localeCompare(b.status || '');
+      case 'status-desc':
+        return (b.status || '').localeCompare(a.status || '');
+      default:
+        return 0;
+    }
   });
 
   const getStatusColor = (status: string) => {
@@ -221,21 +261,37 @@ export default function DoctorsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Select
-                      value={selectedSpecialty}
-                      onValueChange={setSelectedSpecialty}
-                    >
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Specialty" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {specialties.map((specialty) => (
-                          <SelectItem key={specialty} value={specialty}>
-                            {specialty}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                                         <Select
+                       value={selectedSpecialty}
+                       onValueChange={setSelectedSpecialty}
+                     >
+                       <SelectTrigger className="w-40">
+                         <SelectValue placeholder="Specialty" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         {specialties.map((specialty) => (
+                           <SelectItem key={specialty} value={specialty}>
+                             {specialty}
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
+                     </Select>
+                     <Select
+                       value={selectedClinic}
+                       onValueChange={setSelectedClinic}
+                     >
+                       <SelectTrigger className="w-40">
+                         <SelectValue placeholder="Clinic" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="All Clinics">All Clinics</SelectItem>
+                         {clinics.map((clinic) => (
+                           <SelectItem key={clinic.id} value={clinic.id}>
+                             {clinic.name}
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
+                     </Select>
                     <Select
                       value={selectedStatus}
                       onValueChange={setSelectedStatus}
@@ -247,6 +303,18 @@ export default function DoctorsPage() {
                         {statuses.map((status) => (
                           <SelectItem key={status} value={status}>
                             {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={selectedSort} onValueChange={setSelectedSort}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sortOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -282,9 +350,22 @@ export default function DoctorsPage() {
                         <TableHead className="w-[50px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
-                    <TableBody>
-                      {filteredDoctors.map((doctor) => (
-                        <TableRow key={doctor.id} className="table-row-hover">
+                                         <TableBody>
+                       {sortedDoctors.length === 0 ? (
+                         <TableRow>
+                           <TableCell colSpan={7} className="text-center py-8">
+                             <div className="flex flex-col items-center space-y-2">
+                               <div className="text-muted-foreground text-lg">👨‍⚕️</div>
+                               <p className="text-muted-foreground font-medium">No specialists found</p>
+                               <p className="text-sm text-muted-foreground">
+                                 Try adjusting your search criteria or filters
+                               </p>
+                             </div>
+                           </TableCell>
+                         </TableRow>
+                       ) : (
+                         sortedDoctors.map((doctor) => (
+                          <TableRow key={doctor.id} className="table-row-hover">
                           <TableCell>
                             <div className="flex items-center space-x-3">
                               <Avatar className="h-10 w-10">
@@ -338,14 +419,14 @@ export default function DoctorsPage() {
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
-                              {doctor.prcExpiryDate ? new Date(doctor.prcExpiryDate).toLocaleDateString() : 'N/A'}
+                              {doctor.prcExpiryDate ? formatDateToText(doctor.prcExpiryDate) : 'N/A'}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               PRC: {doctor.prcId}
                             </div>
                           </TableCell>
                           <TableCell className="text-sm">
-                            {doctor.createdAt ? new Date(doctor.createdAt).toLocaleDateString() : 'N/A'}
+                            {doctor.createdAt ? formatDateToText(doctor.createdAt) : 'N/A'}
                           </TableCell>
                           <TableCell>
                             <DropdownMenu>
@@ -375,7 +456,8 @@ export default function DoctorsPage() {
                             </DropdownMenu>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ))
+                    )}
                     </TableBody>
                   </Table>
                 </div>

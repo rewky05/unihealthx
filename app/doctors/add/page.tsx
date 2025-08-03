@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,10 +11,20 @@ import { PersonalInfoForm } from '@/components/doctors/personal-info-form';
 import { ProfessionalDetailsForm } from '@/components/doctors/professional-details-form';
 import { AffiliationsEducationForm } from '@/components/doctors/affiliations-education-form';
 import { DocumentUploadsForm } from '@/components/doctors/document-uploads-form';
-import { ArrowLeft, UserPlus } from 'lucide-react';
+import { ArrowLeft, UserPlus, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { RealDataService } from '@/lib/services/real-data.service';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { useAuth } from '@/hooks/useAuth';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export interface DoctorFormData {
   // Personal Information
@@ -68,13 +78,19 @@ export interface SpecialistSchedule {
 
 export default function AddDoctorPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
   
   // Confirmation dialog state
   const [submitDialog, setSubmitDialog] = useState(false);
+  const [successDialog, setSuccessDialog] = useState(false);
+  const [successData, setSuccessData] = useState<{email: string, password: string} | null>(null);
+  const [clearDialog, setClearDialog] = useState(false);
   
-  const [formData, setFormData] = useState<DoctorFormData>({
+  // Initial form data
+  const initialFormData: DoctorFormData = {
     // Personal Information
     firstName: '',
     middleName: '',
@@ -96,16 +112,23 @@ export default function AddDoctorPage() {
     prcExpiry: '',
     professionalFee: undefined,
 
-                   // Schedules
-      schedules: []
-  });
-
-  const updateFormData = (section: keyof DoctorFormData, data: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [section]: data
-    }));
+    // Schedules
+    schedules: []
   };
+
+  // Use regular useState instead of form persistence to fix input issues
+  const [formData, setFormData] = useState<DoctorFormData>(initialFormData);
+  const [isLoaded, setIsLoaded] = useState(true);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Cleanup timeout on unmount
+  // useEffect(() => {
+  //   return () => {
+  //     if (saveTimeoutRef.current) {
+  //       clearTimeout(saveTimeoutRef.current);
+  //     }
+  //   };
+  // }, []);
 
   const handleSubmit = () => {
     setSubmitDialog(true);
@@ -150,20 +173,44 @@ export default function AddDoctorPage() {
       // Create doctor in Firebase (users, doctors, and specialistSchedules nodes)
       const { doctorId, temporaryPassword } = await realDataService.createDoctor(doctorData);
       
-      console.log('Doctor created successfully with ID:', doctorId);
-      console.log('Temporary password:', temporaryPassword);
+      // Clear saved form data after successful submission
+      // clearData(); // This line is removed as per the edit hint
       
-      // Show success message with credentials
-      alert(`Doctor created successfully!\n\nEmail: ${formData.email}\nTemporary Password: ${temporaryPassword}\n\nPlease share these credentials with the doctor. They should change their password on first login.`);
+      // Set success data and show dialog
+      setSuccessData({
+        email: formData.email,
+        password: temporaryPassword
+      });
+      setSuccessDialog(true);
       
-      // Navigate back to doctors list
-      router.push('/doctors');
+      // Navigate back to doctors list after a delay
+      setTimeout(() => {
+        router.push('/doctors');
+      }, 3000);
     } catch (error) {
       console.error('Error creating doctor:', error);
-      alert('Error creating doctor. Please try again.');
+      toast({
+        title: "Error creating doctor",
+        description: "Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
+      setSubmitDialog(false);
     }
+  };
+
+  const handleClearForm = () => {
+    setClearDialog(true);
+  };
+
+  const confirmClearForm = () => {
+    // clearData(); // This line is removed as per the edit hint
+    setClearDialog(false);
+    toast({
+      title: "Form cleared",
+      description: "All form data has been cleared.",
+    });
   };
 
   const isFormValid = () => {
@@ -213,10 +260,6 @@ export default function AddDoctorPage() {
     ];
     
     const failedFields = fieldNames.filter((_, index) => !validations[index]);
-    if (failedFields.length > 0) {
-      console.log('Failed validation fields:', failedFields);
-      console.log('Form data:', formData);
-    }
     
     return validations.every(valid => valid);
   };
@@ -225,13 +268,6 @@ export default function AddDoctorPage() {
   const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const isValid = emailRegex.test(email.trim());
-    
-    if (!isValid && email.trim()) {
-      console.log('Email validation failed:', {
-        email: email.trim(),
-        isValid
-      });
-    }
     
     return isValid;
   };
@@ -243,14 +279,6 @@ export default function AddDoctorPage() {
     const phoneRegex = /^(\+63|63|0)?[9]\d{8,9}$/;
     const isValid = phoneRegex.test(cleanedPhone);
     
-    if (!isValid && phone.trim()) {
-      console.log('Phone validation failed:', {
-        original: phone,
-        cleaned: cleanedPhone,
-        isValid
-      });
-    }
-    
     return isValid;
   };
 
@@ -258,14 +286,6 @@ export default function AddDoctorPage() {
     if (!date.trim()) return false;
     const dateObj = new Date(date);
     const isValid = dateObj instanceof Date && !isNaN(dateObj.getTime()) && dateObj < new Date();
-    
-    if (!isValid && date.trim()) {
-      console.log('Date validation failed:', {
-        original: date,
-        dateObj,
-        isValid
-      });
-    }
     
     return isValid;
   };
@@ -349,16 +369,9 @@ export default function AddDoctorPage() {
         
         personalValidations.forEach(({ field, valid }) => {
           if (valid) completedPersonal++;
-          else {
-            console.log(`Personal field failed: ${field}`, {
-              value: formData[field as keyof typeof formData],
-              valid
-            });
-          }
         });
         
         const progress = Math.round((completedPersonal / 10) * 100);
-        console.log(`Personal progress: ${completedPersonal}/10 = ${progress}%`);
         return progress;
       
       case 'professional':
@@ -494,6 +507,34 @@ export default function AddDoctorPage() {
      }
    };
 
+  // Add warning for unsaved changes
+  // useEffect(() => {
+  //   const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+  //     if (hasUnsavedChanges) {
+  //       e.preventDefault();
+  //       e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+  //       return e.returnValue;
+  //     }
+  //   };
+
+  //   window.addEventListener('beforeunload', handleBeforeUnload);
+  //   return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  // }, [hasUnsavedChanges]);
+
+  // Show loading state while form data is being loaded
+  if (!isLoaded) {
+    return (
+      <DashboardLayout title="">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="text-muted-foreground">Loading saved form data...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout title="">
       <div className="space-y-6 animate-fade-in">
@@ -516,6 +557,16 @@ export default function AddDoctorPage() {
             </div>
           </div>
         </div>
+
+        {/* Auto-save indicator */}
+        {/* {hasUnsavedChanges && (
+          <Alert className="border-blue-200 bg-blue-50">
+            <Save className="h-4 w-4" />
+            <AlertDescription>
+              Your changes are being automatically saved.
+            </AlertDescription>
+          </Alert>
+        )} */}
 
                  {/* Form Tabs */}
          <Card className="card-shadow">
@@ -596,11 +647,33 @@ export default function AddDoctorPage() {
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-6 border-t">
-          <Link href="/doctors">
-            <Button variant="outline">
-              Cancel
-            </Button>
-          </Link>
+          <div className="flex items-center space-x-3">
+            <Link href="/doctors">
+              <Button variant="outline">
+                Cancel
+              </Button>
+            </Link>
+            
+            {/* Form persistence controls */}
+            <div className="flex items-center space-x-2">
+              {/* <Button 
+                variant="outline" 
+                size="sm"
+                // onClick={() => saveData()} // This line is removed as per the edit hint
+                disabled={!hasUnsavedChanges}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save Now
+              </Button> */}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleClearForm}
+              >
+                Clear Form
+              </Button>
+            </div>
+          </div>
           
           <div className="flex items-center space-x-3">
             <p className="text-sm text-muted-foreground">
@@ -618,17 +691,56 @@ export default function AddDoctorPage() {
       </div>
 
       {/* Confirmation Dialog */}
-             <ConfirmationDialog
-         open={submitDialog}
-         onOpenChange={setSubmitDialog}
-         title="Submit Doctor Registration"
-         description={`Are you sure you want to submit the registration for Dr. ${formData.firstName} ${formData.lastName}? This will create a new doctor account in the system.`}
-         confirmText="Submit Registration"
-         cancelText="Cancel"
-         variant="default"
-         loading={isSubmitting}
-         onConfirm={confirmSubmit}
-       />
+      <ConfirmationDialog
+        open={submitDialog}
+        onOpenChange={setSubmitDialog}
+        title="Submit Doctor Registration"
+        description={`Are you sure you want to submit the registration for Dr. ${formData.firstName} ${formData.lastName}? This will create a new doctor account in the system.`}
+        confirmText="Submit Registration"
+        cancelText="Cancel"
+        variant="default"
+        loading={isSubmitting}
+        onConfirm={confirmSubmit}
+      />
+
+      {/* Success Dialog */}
+      <Dialog open={successDialog} onOpenChange={setSuccessDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Doctor Created Successfully!</DialogTitle>
+            <DialogDescription>
+              <div className="space-y-3">
+                <p>A new doctor account has been created successfully.</p>
+                {successData && (
+                  <div className="bg-muted p-3 rounded-lg space-y-2">
+                    <p className="text-sm font-medium">Please share these credentials with the doctor:</p>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="font-medium">Email:</span> {successData.email}</p>
+                      <p><span className="font-medium">Temporary Password:</span> {successData.password}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      The doctor should change their password on first login.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      {/* Clear Form Dialog */}
+      <ConfirmationDialog
+        open={clearDialog}
+        onOpenChange={setClearDialog}
+        title="Clear Form Data"
+        description="Are you sure you want to clear all form data? This action cannot be undone."
+        confirmText="Clear Form"
+        cancelText="Cancel"
+        variant="destructive"
+        loading={false}
+        onConfirm={confirmClearForm}
+      />
     </DashboardLayout>
   );
 }

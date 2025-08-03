@@ -29,6 +29,7 @@ import { auth, db } from '@/lib/firebase/config';
 import { useAuth } from '@/hooks/useAuth';
 import { AUTH_CONFIG } from '@/lib/config/auth';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { formatDateToText } from '@/lib/utils';
 
 interface AdminUser {
   uid: string;
@@ -408,14 +409,14 @@ export function UserRoleManagement({ onUnsavedChanges }: UserRoleManagementProps
                       <div className="flex items-center space-x-1">
                         <Calendar className="h-3 w-3 text-muted-foreground" />
                         <span className="text-sm">
-                          {new Date(user.createdAt).toLocaleDateString()}
+                          {formatDateToText(user.createdAt)}
                         </span>
                       </div>
                     </TableCell>
                     <TableCell>
                       {user.lastLogin ? (
                         <span className="text-sm text-muted-foreground">
-                          {new Date(user.lastLogin).toLocaleDateString()}
+                          {formatDateToText(user.lastLogin)}
                         </span>
                       ) : (
                         <span className="text-sm text-muted-foreground">Never</span>

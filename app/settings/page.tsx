@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import {
   Shield,
   Monitor
 } from 'lucide-react';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 const settingsCategories = [
   {
@@ -70,6 +71,8 @@ const settingsCategories = [
 export default function SettingsPage() {
   const [activeCategory, setActiveCategory] = useState('general');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingCategory, setPendingCategory] = useState<string | null>(null);
   const { user, isSuperadmin, isAdmin, loading } = useAuth();
 
   // Determine current user role
@@ -107,13 +110,26 @@ export default function SettingsPage() {
 
   const handleCategoryChange = (categoryId: string) => {
     if (hasUnsavedChanges) {
-      const confirmLeave = window.confirm(
-        'You have unsaved changes. Are you sure you want to leave this section?'
-      );
-      if (!confirmLeave) return;
+      setPendingCategory(categoryId);
+      setShowConfirmDialog(true);
+      return;
     }
     setActiveCategory(categoryId);
     setHasUnsavedChanges(false);
+  };
+
+  const confirmCategoryChange = () => {
+    if (pendingCategory) {
+      setActiveCategory(pendingCategory);
+      setHasUnsavedChanges(false);
+      setPendingCategory(null);
+    }
+    setShowConfirmDialog(false);
+  };
+
+  const cancelCategoryChange = () => {
+    setPendingCategory(null);
+    setShowConfirmDialog(false);
   };
 
   const renderContent = () => {
@@ -223,6 +239,20 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        title="Unsaved Changes"
+        description="You have unsaved changes. Are you sure you want to leave this section?"
+        confirmText="Leave Section"
+        cancelText="Stay"
+        variant="destructive"
+        loading={false}
+        onConfirm={confirmCategoryChange}
+        onCancel={cancelCategoryChange}
+      />
     </DashboardLayout>
   );
 }

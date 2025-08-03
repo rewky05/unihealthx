@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useRealFeedback } from '@/hooks/useRealData';
+import { useClinicsWithRatings } from '@/hooks/useFeedback';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
+import { formatDateToText } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,19 +42,33 @@ import {
   Eye,
   TrendingUp,
   TrendingDown,
-  Filter
+  Filter,
+  Building2
 } from 'lucide-react';
 
 
 
 const ratings = ['All', '5 Stars', '4 Stars', '3 Stars', '2 Stars', '1 Star'];
 const statuses = ['All', 'Pending', 'Reviewed', 'Flagged'];
+const sortOptions = [
+  { value: 'date-desc', label: 'Newest First' },
+  { value: 'date-asc', label: 'Oldest First' },
+  { value: 'rating-desc', label: 'Highest Rating' },
+  { value: 'rating-asc', label: 'Lowest Rating' },
+  { value: 'patient-asc', label: 'Patient Name A-Z' },
+  { value: 'patient-desc', label: 'Patient Name Z-A' },
+  { value: 'doctor-asc', label: 'Doctor Name A-Z' },
+  { value: 'doctor-desc', label: 'Doctor Name Z-A' },
+];
 
 export default function FeedbackPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRating, setSelectedRating] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
+  const [selectedClinic, setSelectedClinic] = useState('All');
+  const [selectedSort, setSelectedSort] = useState('date-desc');
   const { feedback, loading, error } = useRealFeedback();
+  const { clinics: clinicsWithRatings, loading: clinicsLoading } = useClinicsWithRatings();
   const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
 
   const filteredFeedback = feedback.filter(item => {
@@ -63,8 +79,34 @@ export default function FeedbackPage() {
                          selectedRating === `${item.rating || 0} Star${(item.rating || 0) !== 1 ? 's' : ''}`;
     const matchesStatus = selectedStatus === 'All' || 
                          (item.status || '').toLowerCase() === selectedStatus.toLowerCase();
+    const matchesClinic = selectedClinic === 'All' || 
+                          item.clinicId === selectedClinic;
 
-    return matchesSearch && matchesRating && matchesStatus;
+    return matchesSearch && matchesRating && matchesStatus && matchesClinic;
+  });
+
+  // Sort the filtered feedback
+  const sortedFeedback = [...filteredFeedback].sort((a, b) => {
+    switch (selectedSort) {
+      case 'date-desc':
+        return new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime();
+      case 'date-asc':
+        return new Date(a.date || a.createdAt || 0).getTime() - new Date(b.date || b.createdAt || 0).getTime();
+      case 'rating-desc':
+        return (b.rating || 0) - (a.rating || 0);
+      case 'rating-asc':
+        return (a.rating || 0) - (b.rating || 0);
+      case 'patient-asc':
+        return (a.patientName || '').localeCompare(b.patientName || '');
+      case 'patient-desc':
+        return (b.patientName || '').localeCompare(a.patientName || '');
+      case 'doctor-asc':
+        return (a.doctorName || '').localeCompare(b.doctorName || '');
+      case 'doctor-desc':
+        return (b.doctorName || '').localeCompare(a.doctorName || '');
+      default:
+        return 0;
+    }
   });
 
   const getStatusColor = (status: string) => {
@@ -147,7 +189,7 @@ export default function FeedbackPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="stat-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -179,20 +221,30 @@ export default function FeedbackPage() {
             </CardContent>
           </Card>
 
-          {/* <Card className="stat-card">
+          <Card className="stat-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Pending Reviews
+                Highest Rating
               </CardTitle>
-              <Filter className="h-4 w-4 text-orange-600" />
+              <Star className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{pendingReviews}</div>
+              <div className="text-2xl font-bold">
+                {clinicsWithRatings.length > 0 
+                  ? Math.max(...clinicsWithRatings.map(c => c.averageRating)).toFixed(1)
+                  : '0.0'
+                }
+              </div>
               <div className="text-xs text-muted-foreground mt-1">
-                Require attention
+                {clinicsWithRatings.length > 0 
+                  ? clinicsWithRatings.reduce((highest, current) => 
+                      current.averageRating > highest.averageRating ? current : highest
+                    ).clinicName
+                  : 'No clinics'
+                }
               </div>
             </CardContent>
-          </Card> */}
+          </Card>
 
           <Card className="stat-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -210,6 +262,8 @@ export default function FeedbackPage() {
           </Card>
         </div>
 
+
+
         {/* Filters */}
         <Card id="review-feedback" className="card-shadow">
           <CardContent className="pt-6">
@@ -226,18 +280,43 @@ export default function FeedbackPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Select value={selectedRating} onValueChange={setSelectedRating}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Rating" />
+                <Select value={selectedClinic} onValueChange={setSelectedClinic}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Clinic" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {ratings.map((rating) => (
-                      <SelectItem key={rating} value={rating}>
-                        {rating}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                                     <SelectContent>
+                     <SelectItem value="All">All Clinics</SelectItem>
+                     {clinicsWithRatings.map((clinic) => (
+                       <SelectItem key={clinic.clinicId} value={clinic.clinicId}>
+                         {clinic.clinicName} ({clinic.averageRating.toFixed(1)}⭐)
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
                 </Select>
+                                 <Select value={selectedRating} onValueChange={setSelectedRating}>
+                   <SelectTrigger className="w-32">
+                     <SelectValue placeholder="Rating" />
+                   </SelectTrigger>
+                                      <SelectContent>
+                     {ratings.map((rating) => (
+                       <SelectItem key={rating} value={rating}>
+                         {rating === 'All' ? 'All Ratings' : rating}
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+                 <Select value={selectedSort} onValueChange={setSelectedSort}>
+                   <SelectTrigger className="w-40">
+                     <SelectValue placeholder="Sort by" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     {sortOptions.map((option) => (
+                       <SelectItem key={option.value} value={option.value}>
+                         {option.label}
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
                 {/* <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                   <SelectTrigger className="w-32">
                     <SelectValue placeholder="Status" />
@@ -281,9 +360,22 @@ export default function FeedbackPage() {
                     <TableHead className="w-[50px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {filteredFeedback.map((item) => (
-                    <TableRow key={item.id} className="table-row-hover">
+                                 <TableBody>
+                   {sortedFeedback.length === 0 ? (
+                     <TableRow>
+                       <TableCell colSpan={7} className="text-center py-8">
+                         <div className="flex flex-col items-center space-y-2">
+                           <div className="text-muted-foreground text-lg">📭</div>
+                           <p className="text-muted-foreground font-medium">No feedback found</p>
+                           <p className="text-sm text-muted-foreground">
+                             Try adjusting your search criteria or filters
+                           </p>
+                         </div>
+                       </TableCell>
+                     </TableRow>
+                   ) : (
+                     sortedFeedback.map((item) => (
+                      <TableRow key={item.id} className="table-row-hover">
                       <TableCell>
                         <div className="flex items-center space-x-3">
                           <Avatar className="h-8 w-8">
@@ -329,7 +421,7 @@ export default function FeedbackPage() {
                       <TableCell className="text-sm">
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-3 w-3 text-muted-foreground" />
-                          <span>{new Date(item.date || item.createdAt || Date.now()).toLocaleDateString()}</span>
+                          <span>{formatDateToText(item.date || item.createdAt || Date.now())}</span>
                         </div>
                       </TableCell>
                       {/* <TableCell>
@@ -377,6 +469,19 @@ export default function FeedbackPage() {
                                       <div>{selectedFeedback.doctorName}</div>
                                       <div className="text-muted-foreground">{selectedFeedback.doctorSpecialty}</div>
                                       <div className="text-muted-foreground">{selectedFeedback.clinic}</div>
+                                      {selectedFeedback.clinicId && (
+                                        <div className="flex items-center space-x-2 mt-2">
+                                          <span className="text-xs text-muted-foreground">Clinic Rating:</span>
+                                          <div className="flex">
+                                            {renderStars(Math.round(
+                                              clinicsWithRatings.find(c => c.clinicId === selectedFeedback.clinicId)?.averageRating || 0
+                                            ))}
+                                          </div>
+                                          <span className="text-xs font-medium">
+                                            {clinicsWithRatings.find(c => c.clinicId === selectedFeedback.clinicId)?.averageRating.toFixed(1) || '0.0'}
+                                          </span>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -430,7 +535,8 @@ export default function FeedbackPage() {
                         </Dialog>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ))
+                )}
                 </TableBody>
               </Table>
             </div>

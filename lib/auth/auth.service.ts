@@ -131,10 +131,6 @@ export class AuthService {
 
       // Create session for the user
       try {
-        console.log('Creating session for user:', user.email);
-        console.log('Firebase user email:', user.email);
-        console.log('Admin user email:', adminUser.email);
-        console.log('Admin user role:', adminUser.role);
         const sessionData = await sessionService.createSession(
           user.uid,
           user.email!,
@@ -145,13 +141,9 @@ export class AuthService {
 
         // Store session securely on client
         SecureSessionStorage.storeSession(sessionData);
-        console.log('Session stored in client storage');
 
         // Start activity tracking
         SessionActivityTracker.startTracking();
-        console.log('Activity tracking started');
-
-        console.log('Session created for user:', user.email);
         
         // Trigger a small delay to ensure session is properly stored
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -160,7 +152,6 @@ export class AuthService {
         // Continue with login even if session creation fails
       }
       
-      console.log('Returning admin user:', adminUser);
       return adminUser;
 
     } catch (error: any) {
@@ -211,7 +202,6 @@ export class AuthService {
       const sanitizedEmail = this.sanitizeEmailForStorage(email);
       const storageKey = `captcha_puzzle_${sanitizedEmail}`;
       const puzzleData = sessionStorage.getItem(storageKey);
-      console.log('Retrieving puzzle for email:', email, 'with key:', storageKey, 'found:', !!puzzleData);
       return puzzleData ? JSON.parse(puzzleData) : null;
     } catch (error) {
       console.error('Error retrieving puzzle for email:', email, error);
@@ -264,7 +254,6 @@ export class AuthService {
       await signOut(auth);
       localStorage.removeItem('userRole');
       localStorage.removeItem('userEmail');
-      console.log('User signed out successfully');
     } catch (error: any) {
       console.error('Sign out error:', error);
       throw new Error('Failed to sign out');
